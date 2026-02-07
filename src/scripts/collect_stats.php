@@ -95,30 +95,12 @@ foreach ($projects as $project) {
             'warn_count' => $stats['warn'],
             'info_count' => $stats['info'],
             'top_errors' => $topErrorsJson
-        ]);
+        ], true); // Use REPLACE mode for upsert
 
-        if ($inserted) {
+        if ($inserted !== false) {
             echo " - Stats saved for {$currentHour}\n";
         } else {
             echo " - FAILED to save stats for {$currentHour}. Error: " . $db->last_error . "\n";
-            
-            // Fallback to update if insert failed due to UNIQUE constraint
-            if (strpos($db->last_error, 'UNIQUE') !== false) {
-                 $updated = $db->update('stats', [
-                    'error_count' => $stats['error'],
-                    'warn_count' => $stats['warn'],
-                    'info_count' => $stats['info'],
-                    'top_errors' => $topErrorsJson
-                ], [
-                    'project_id' => $project->id,
-                    'timestamp' => $currentHour
-                ]);
-                if ($updated) {
-                     echo " - Stats updated for {$currentHour}\n";
-                } else {
-                     echo " - FAILED to update stats. Error: " . $db->last_error . "\n";
-                }
-            }
         }
     } catch (\Throwable $e) {
         echo " - Critical Error during DB operation: " . $e->getMessage() . "\n";

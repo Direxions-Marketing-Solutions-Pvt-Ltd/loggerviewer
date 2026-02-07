@@ -48,13 +48,14 @@ class Database
         return $stmt ? $stmt->fetch() : null;
     }
 
-    public function insert(string $table, array $data): int|string|bool
+    public function insert(string $table, array $data, bool $replace = false): int|string|bool
     {
         $keys = array_keys($data);
         $fields = '"' . implode('", "', $keys) . '"';
         $placeholders = implode(', ', array_fill(0, count($keys), '?'));
 
-        $sql = "INSERT INTO \"$table\" ($fields) VALUES ($placeholders)";
+        $op = $replace ? 'INSERT OR REPLACE' : 'INSERT';
+        $sql = "$op INTO \"$table\" ($fields) VALUES ($placeholders)";
         $stmt = $this->query($sql, array_values($data));
 
         return $stmt ? (int)$this->pdo->lastInsertId() : false;
