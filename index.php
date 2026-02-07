@@ -134,6 +134,10 @@ switch ($action) {
         require_once __DIR__ . '/src/views/analytics.php';
         break;
 
+    case 'changelog':
+        require_once __DIR__ . '/src/views/changelog.php';
+        break;
+
     case 'download_raw':
         $projectId = (int)($_GET['project_id'] ?? 0);
         $file = $_GET['file'] ?? '';

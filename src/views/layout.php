@@ -18,6 +18,7 @@
                     <span class="badge badge-<?= $_SESSION['role'] ?>"><?= ucfirst($_SESSION['role']) ?></span>
                 </div>
                 <a href="index.php?action=dashboard" class="btn btn-secondary" style="padding: 0.5rem 1rem; border: none; background: transparent; color: var(--text-secondary);">Projects</a>
+                <a href="index.php?action=changelog" class="btn btn-secondary" style="padding: 0.5rem 1rem; border: none; background: transparent; color: var(--text-secondary);">What's New</a>
                  <?php if (\App\Auth::isAdmin()): ?>
                      <a href="index.php?action=users" class="btn btn-secondary" style="padding: 0.5rem 1rem; border: none; background: transparent; color: var(--text-secondary);">Users</a>
                     <a href="index.php?action=settings" class="btn btn-secondary" style="padding: 0.5rem 1rem; border: none; background: transparent; color: var(--text-secondary);">Settings</a>
