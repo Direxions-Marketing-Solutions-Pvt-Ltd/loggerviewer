@@ -1,4 +1,8 @@
 <?php
+if (version_compare(PHP_VERSION, '8.1.0', '<')) {
+    header('Content-Type: text/plain');
+    die("Error: Logger View requires PHP 8.1 or higher (PHP 8.4 recommended). Your current environment is running PHP " . PHP_VERSION . ".\nPlease upgrade your PHP version or check your web server configuration (e.g., fastcgi_pass).");
+}
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/src/autoload.php';

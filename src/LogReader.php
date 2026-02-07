@@ -7,6 +7,7 @@ namespace App;
 class LogReader
 {
     private string $directory;
+    private string $filePattern = '*.{log,txt,gz}';
     private ?string $format;
 
     /**
@@ -49,7 +50,7 @@ class LogReader
         ],
         'nginx_error_basic' => [
             'name' => 'Nginx Error (Basic)',
-            'regex' => '/^(\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[(.*?)\]\s+\d+#\d+:\s+(.*)$/',
+            'regex' => '/^(\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[(.*?)\]\s+(.*)$/',
             'match' => [
                 'date' => 1,
                 'level' => 2,
@@ -73,12 +74,29 @@ class LogReader
                 'date' => 'date'
             ],
             'multiline' => 'message'
+        ],
+        'generic_bracket' => [
+            'name' => 'Generic (Bracket Date)',
+            'regex' => '/^\[(.*?)\] (.*)$/',
+            'match' => [
+                'date' => 1,
+                'message' => 2
+            ],
+            'types' => [
+                'date' => 'date'
+            ]
         ]
     ];
 
-    public function __construct(string $directory, ?string $format = null)
+    public function __construct(string $path, ?string $format = null)
     {
-        $this->directory = rtrim($directory, '/');
+        if (strpos($path, '*') !== false || strpos($path, '?') !== false || strpos($path, '{') !== false) {
+            $this->directory = dirname($path);
+            $this->filePattern = basename($path);
+        } else {
+            $this->directory = rtrim($path, '/');
+        }
+
         if ($format) {
             $parsed = json_decode($format, true);
             if ($parsed && isset($parsed['regex'])) {
@@ -96,23 +114,20 @@ class LogReader
 
     public function getLogFiles(): array
     {
-        if (!is_dir($this->directory)) {
-            return [];
-        }
-
-        $patterns = [$this->directory . '/*.log', $this->directory . '/*.txt', $this->directory . '/*.gz'];
-        $files = [];
-
-        foreach ($patterns as $pattern) {
-             $found = glob($pattern);
-             if ($found) {
-                 $files = array_merge($files, $found);
-             }
+        $searchPath = $this->directory . DIRECTORY_SEPARATOR . $this->filePattern;
+        $files = glob($searchPath, GLOB_BRACE);
+        
+        if (!$files) {
+            // Fallback to basic *.log if no files found and pattern was custom
+            if ($this->filePattern !== '*.{log,txt,gz}') {
+                 return [];
+            }
+            $files = glob($this->directory . '/*.log');
         }
         
-        $files = array_unique($files);
-        $result = [];
+        if (!$files) return [];
 
+        $result = [];
         foreach ($files as $file) {
             if (!is_file($file) || !is_readable($file)) {
                 continue;
@@ -328,6 +343,98 @@ class LogReader
             $fields[$name] = $matches[$index] ?? '-';
         }
         return $fields;
+    }
+
+    private function parseDateToTimestamp(string $dateStr): ?int
+    {
+        // Formats:
+        // Nginx Access: 07/Feb/2026:22:46:17 +0530
+        // Nginx Error: 2026/02/07 00:30:17
+        // PHP Error: 07-Feb-2026 21:26:49 UTC
+
+        // Normalize Nginx Error format (replace / with -)
+        $normalized = str_replace('/', '-', $dateStr);
+        
+        // Handle Nginx Access format (remove : after day/month/year)
+        if (preg_match('/^(\d{2}-[A-Za-z]{3}-\d{4}):(\d{2}:\d{2}:\d{2})/', $normalized, $m)) {
+            $normalized = $m[1] . ' ' . $m[2];
+        }
+
+        $ts = strtotime($normalized);
+        return $ts === false ? null : $ts;
+    }
+
+    public function getHourlyStats(string $filename, int $sinceTimestamp): array
+    {
+        $filePath = $this->directory . '/' . basename($filename);
+        if (!file_exists($filePath)) {
+            return ['error' => 0, 'warn' => 0, 'info' => 0, 'samples' => []];
+        }
+
+        $handle = fopen($filePath, 'rb');
+        if (!$handle) {
+            return ['error' => 0, 'warn' => 0, 'info' => 0, 'samples' => []];
+        }
+
+        $stats = ['error' => 0, 'warn' => 0, 'info' => 0];
+        $samples = [];
+        $matchedFormat = null;
+
+        fseek($handle, 0, SEEK_END);
+        $pos = ftell($handle);
+        $chunkSize = 8192;
+        $lineRemainder = '';
+        $stop = false;
+
+        while ($pos > 0 && !$stop) {
+            $readSize = min($pos, $chunkSize);
+            $pos -= $readSize;
+            fseek($handle, $pos);
+            $chunk = fread($handle, $readSize) . $lineRemainder;
+            
+            $chunkLines = explode("\n", $chunk);
+            $lineRemainder = array_shift($chunkLines);
+
+            for ($i = count($chunkLines) - 1; $i >= 0; $i--) {
+                $line = $chunkLines[$i];
+                if ($line === '') continue;
+
+                $parsed = $this->parseLineEnhanced($line, $matchedFormat);
+                if ($parsed && isset($parsed['fields']['date'])) {
+                    $ts = $this->parseDateToTimestamp($parsed['fields']['date']);
+                    if ($ts && $ts < $sinceTimestamp) {
+                        $stop = true;
+                        break;
+                    }
+
+                    $level = $this->detectLevel($line, $parsed['fields']);
+                    if (isset($stats[$level])) {
+                        $stats[$level]++;
+                        if ($level === 'error' && count($samples) < 500) {
+                            $samples[] = $parsed['fields']['message'] ?? $line;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Final check for the lineRemainder
+        if (!$stop && $lineRemainder !== '') {
+             $parsed = $this->parseLineEnhanced($lineRemainder, $matchedFormat);
+             if ($parsed && isset($parsed['fields']['date'])) {
+                $ts = $this->parseDateToTimestamp($parsed['fields']['date']);
+                if ($ts && $ts >= $sinceTimestamp) {
+                    $level = $this->detectLevel($lineRemainder, $parsed['fields']);
+                    if (isset($stats[$level])) {
+                        $stats[$level]++;
+                    }
+                }
+             }
+        }
+
+        fclose($handle);
+        $stats['samples'] = $samples;
+        return $stats;
     }
 
     private function detectLevel(string $line, array $fields = []): string

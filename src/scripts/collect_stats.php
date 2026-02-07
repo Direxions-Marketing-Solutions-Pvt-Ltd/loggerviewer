@@ -25,36 +25,38 @@ $db = new Database(DB_PATH);
 $projectManager = new Project($db);
 $projects = $projectManager->getAll();
 
-$currentHour = date('Y-m-d H:00:00');
+// We collect for the PREVIOUS hour, as that hour is now "complete"
+$targetHourTs = strtotime(date('Y-m-d H:00:00')) - 3600;
+$currentHour = date('Y-m-d H:00:00', $targetHourTs);
+
+echo "Collecting stats for: {$currentHour}\n";
 
 foreach ($projects as $project) {
-    echo "Processing project: {$project->name}...\n";
+    echo "Processing project: {$project->name} (ID: {$project->id})...\n";
     
     $stats = [
         'error' => 0,
         'warn' => 0,
         'info' => 0
     ];
+    $errorMessages = [];
 
     // Check Webserver Logs
-    $errorMessages = [];
     if (!empty($project->webserver_path)) {
         $reader = new LogReader($project->webserver_path, $project->webserver_format);
         foreach ($reader->getLogFiles() as $file) {
-            // Include .log and .txt files, or any text file
             if ($file['type'] === 'text') {
-                $stats['error'] += $reader->getTotalLines($file['name'], 'error');
-                $stats['warn']  += $reader->getTotalLines($file['name'], 'warn');
-                $stats['info']  += $reader->getTotalLines($file['name'], 'info');
+                echo " - Scanning webserver log: {$file['name']}...";
+                $hourly = $reader->getHourlyStats($file['name'], $targetHourTs);
+                $stats['error'] += $hourly['error'];
+                $stats['warn']  += $hourly['warn'];
+                $stats['info']  += $hourly['info'];
                 
-                // Sample errors for frequency analysis
-                $errors = $reader->readLog($file['name'], 0, 500, 'error');
-                foreach ($errors['lines'] as $line) {
-                    $msg = $line['parsed']['columns']['message'] ?? $line['content'];
-                    // Strip variable parts like IDs or timestamps if possible, but keep it simple for now
-                    $msg = substr($msg, 0, 150); 
+                foreach ($hourly['samples'] as $msg) {
+                    $msg = substr($msg, 0, 150);
                     $errorMessages[$msg] = ($errorMessages[$msg] ?? 0) + 1;
                 }
+                echo " Done (E:{$hourly['error']}, W:{$hourly['warn']}, I:{$hourly['info']})\n";
             }
         }
     }
@@ -64,16 +66,17 @@ foreach ($projects as $project) {
         $reader = new LogReader($project->php_path, $project->php_format);
         foreach ($reader->getLogFiles() as $file) {
             if ($file['type'] === 'text') {
-                $stats['error'] += $reader->getTotalLines($file['name'], 'error');
-                $stats['warn']  += $reader->getTotalLines($file['name'], 'warn');
-                $stats['info']  += $reader->getTotalLines($file['name'], 'info');
+                echo " - Scanning PHP log: {$file['name']}...";
+                $hourly = $reader->getHourlyStats($file['name'], $targetHourTs);
+                $stats['error'] += $hourly['error'];
+                $stats['warn']  += $hourly['warn'];
+                $stats['info']  += $hourly['info'];
 
-                $errors = $reader->readLog($file['name'], 0, 500, 'error');
-                foreach ($errors['lines'] as $line) {
-                    $msg = $line['parsed']['columns']['message'] ?? $line['content'];
+                foreach ($hourly['samples'] as $msg) {
                     $msg = substr($msg, 0, 150);
                     $errorMessages[$msg] = ($errorMessages[$msg] ?? 0) + 1;
                 }
+                echo " Done (E:{$hourly['error']}, W:{$hourly['warn']}, I:{$hourly['info']})\n";
             }
         }
     }
