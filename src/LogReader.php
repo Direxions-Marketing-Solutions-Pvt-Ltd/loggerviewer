@@ -351,8 +351,8 @@ class LogReader
         // Nginx Access: 07/Feb/2026:22:46:17 +0530
         // Nginx Error: 2026/02/07 00:30:17
         // PHP Error: 07-Feb-2026 21:26:49 UTC
+        // WP-Admin style: 07-Feb-2026 16:46:02 UTC
 
-        // Normalize Nginx Error format (replace / with -)
         $normalized = str_replace('/', '-', $dateStr);
         
         // Handle Nginx Access format (remove : after day/month/year)
@@ -361,7 +361,10 @@ class LogReader
         }
 
         $ts = strtotime($normalized);
-        return $ts === false ? null : $ts;
+        if ($ts === false) return null;
+
+        // If no timezone in string, assume UTC (since script/server is UTC)
+        return $ts;
     }
 
     public function getHourlyStats(string $filename, int $sinceTimestamp): array
@@ -379,10 +382,12 @@ class LogReader
         $stats = ['error' => 0, 'warn' => 0, 'info' => 0];
         $samples = [];
         $matchedFormat = null;
+        $untilTimestamp = $sinceTimestamp + 3600;
 
         fseek($handle, 0, SEEK_END);
-        $pos = ftell($handle);
-        $chunkSize = 8192;
+        $totalBytes = ftell($handle);
+        $pos = $totalBytes;
+        $chunkSize = 32768; // Larger chunk for speed
         $lineRemainder = '';
         $stop = false;
 
@@ -397,14 +402,20 @@ class LogReader
 
             for ($i = count($chunkLines) - 1; $i >= 0; $i--) {
                 $line = $chunkLines[$i];
-                if ($line === '') continue;
+                if (trim($line) === '') continue;
 
                 $parsed = $this->parseLineEnhanced($line, $matchedFormat);
                 if ($parsed && isset($parsed['fields']['date'])) {
                     $ts = $this->parseDateToTimestamp($parsed['fields']['date']);
-                    if ($ts && $ts < $sinceTimestamp) {
+                    if (!$ts) continue;
+
+                    if ($ts < $sinceTimestamp) {
                         $stop = true;
                         break;
+                    }
+
+                    if ($ts >= $untilTimestamp) {
+                        continue;
                     }
 
                     $level = $this->detectLevel($line, $parsed['fields']);
@@ -418,20 +429,6 @@ class LogReader
             }
         }
         
-        // Final check for the lineRemainder
-        if (!$stop && $lineRemainder !== '') {
-             $parsed = $this->parseLineEnhanced($lineRemainder, $matchedFormat);
-             if ($parsed && isset($parsed['fields']['date'])) {
-                $ts = $this->parseDateToTimestamp($parsed['fields']['date']);
-                if ($ts && $ts >= $sinceTimestamp) {
-                    $level = $this->detectLevel($lineRemainder, $parsed['fields']);
-                    if (isset($stats[$level])) {
-                        $stats[$level]++;
-                    }
-                }
-             }
-        }
-
         fclose($handle);
         $stats['samples'] = $samples;
         return $stats;

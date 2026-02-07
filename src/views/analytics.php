@@ -3,7 +3,8 @@ date_default_timezone_set('UTC');
 $db = new \App\Database(DB_PATH);
 $projectManager = new \App\Project($db);
 $projectId = (int)($_GET['project_id'] ?? 0);
-$since = date('Y-m-d H:i:s', strtotime('-24 hours'));
+// Fetch stats for the last 48 hours (to cover timezone offsets)
+$since = date('Y-m-d H:i:s', strtotime('-48 hours'));
 $where = "timestamp >= ?";
 $params = [$since];
 
