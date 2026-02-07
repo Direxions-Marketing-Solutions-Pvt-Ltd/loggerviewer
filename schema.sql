@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS stats (
     error_count INTEGER DEFAULT 0,
     warn_count INTEGER DEFAULT 0,
     info_count INTEGER DEFAULT 0,
+    top_errors TEXT,
     UNIQUE(project_id, timestamp),
     FOREIGN KEY(project_id) REFERENCES projects(id)
 );
