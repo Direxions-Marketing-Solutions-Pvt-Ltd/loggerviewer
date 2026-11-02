@@ -395,11 +395,8 @@ input:focus {
     border-radius: 0.25rem;
 }
 
-/* Click-to-copy log message */
+/* Log message container */
 .multiline-content {
-    cursor: pointer;
-}
-.multiline-content:hover {
-    background: rgba(59, 130, 246, 0.08);
-    border-radius: 0.25rem;
+    cursor: text;
+    user-select: text;
 }

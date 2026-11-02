@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                      val = `<span class="badge ${badgeClass}">${val}</span>`;
                                  } else if (key === 'message' || key === 'content' || key === 'request') {
                                      const rawVal = val;
-                                     val = `<div class="multiline-content" data-raw="${encodeContent(rawVal)}" title="Click to copy">${highlight(val.replace(/\n/g, '<br>'))}</div>`;
+                                     val = `<div class="multiline-content" data-raw="${encodeContent(rawVal)}">${highlight(val.replace(/\n/g, '<br>'))}</div>`;
                                  } else {
                                      val = highlight(val);
                                  }
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
                          } else {
                              tableHtml += `
                                 <td colspan="${Object.keys(headers).length}" class="log-line-raw ${line.level}">
-                                    <div class="multiline-content" data-raw="${encodeContent(line.content)}" title="Click to copy">${line.content.replace(/\n/g, '<br>')}</div>
+                                    <div class="multiline-content" data-raw="${encodeContent(line.content)}">${line.content.replace(/\n/g, '<br>')}</div>
                                 </td>
                                 <td>${showAi ? getAiBtn(line.content) : ''}</td>
                              `;
@@ -237,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         lineEl.style.justifyContent = 'space-between';
                         const showAi = line.level === 'error' || line.level === 'warn';
                         lineEl.innerHTML = `
-                            <div class="multiline-content" title="Click to copy">${line.content.replace(/\n/g, '<br>')}</div>
+                            <div class="multiline-content">${line.content.replace(/\n/g, '<br>')}</div>
                             ${ (showAi ? getAiBtn(line.content) : '') }
                         `;
                         container.appendChild(lineEl);
@@ -278,6 +278,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.askAI(content);
             } catch(e) {
                 window.askAI(atob(encoded));
+            }
+            return;
+        }
+
+        const copyBtn2 = e.target.closest('.copy-btn');
+        if (copyBtn2) {
+            const encoded = copyBtn2.getAttribute('data-copy-content');
+            let text = '';
+            try { text = decodeURIComponent(escape(atob(encoded))); } catch (e) { text = ''; }
+            if (!text.trim()) return;
+            const doFlash = () => {
+                const orig = copyBtn2.textContent;
+                copyBtn2.textContent = 'COPIED';
+                copyBtn2.style.color = '#10b981';
+                setTimeout(() => { copyBtn2.textContent = 'COPY'; copyBtn2.style.color = ''; }, 1200);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(doFlash).catch(() => {});
+            } else {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); doFlash(); } catch (err) {}
+                document.body.removeChild(ta);
             }
             return;
         }
@@ -330,15 +355,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     const badgeClass = line.level === 'error' ? 'badge-error' : (line.level === 'warn' ? 'badge-warning' : 'badge-info');
                     val = `<span class="badge ${badgeClass}">${val}</span>`;
                 } else if (key === 'message' || key === 'content' || key === 'request') {
-                    val = `<div class="multiline-content" data-raw="${encodeContent(val)}" title="Click to copy">${escapeHTML(val).replace(/\n/g, '<br>')}</div>`;
+                    val = `<div class="multiline-content" data-raw="${encodeContent(val)}">${escapeHTML(val).replace(/\n/g, '<br>')}</div>`;
                 } else {
                     val = escapeHTML(val);
                 }
                 cells += `<td class="${classes}">${val}</td>`;
             });
-            cells += `<td>${showAi ? '' : ''}</td>`;
+            const rawForCopy = (line.parsed && (line.parsed.columns.message || line.parsed.columns.content || line.parsed.columns.request)) || line.content || '';
+            const copyBtn = `<button data-copy-content="${encodeContent(rawForCopy)}" class="btn-secondary copy-btn" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; margin-left: 0.25rem; border-color: rgba(16,185,129,0.4); color: #34d399; font-weight: 800;">COPY</button>`;
+            cells += `<td>${showAi ? getAiBtn(line.content) : ''} ${copyBtn}</td>`;
         } else {
-            cells = `<td colspan="${Object.keys(headers).length}" class="log-line-raw ${line.level}"><div class="multiline-content" data-raw="${encodeContent(line.content)}" title="Click to copy">${line.content.replace(/\n/g, '<br>')}</div></td><td></td>`;
+            cells = `<td colspan="${Object.keys(headers).length}" class="log-line-raw ${line.level}"><div class="multiline-content" data-raw="${encodeContent(line.content)}">${line.content.replace(/\n/g, '<br>')}</div></td><td><button data-copy-content="${encodeContent(line.content)}" class="btn-secondary copy-btn" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; border-color: rgba(16,185,129,0.4); color: #34d399; font-weight: 800;">COPY</button></td>`;
         }
         return `<tr class="log-row ${line.level}">${cells}</tr>`;
     };
@@ -378,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     el.className = `log-line ${l.level}`;
                     el.style.display = 'flex';
                     el.style.justifyContent = 'space-between';
-                    el.innerHTML = `<div class="multiline-content" data-raw="${encodeContent(l.content)}" title="Click to copy">${l.content.replace(/\n/g, '<br>')}</div>`;
+                    el.innerHTML = `<div class="multiline-content" data-raw="${encodeContent(l.content)}">${l.content.replace(/\n/g, '<br>')}</div><button data-copy-content="${encodeContent(l.content)}" class="btn-secondary copy-btn" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; margin-left: 0.5rem; border-color: rgba(16,185,129,0.4); color: #34d399; font-weight: 800;">COPY</button>`;
                     container.insertBefore(el, container.firstChild);
                 });
             }

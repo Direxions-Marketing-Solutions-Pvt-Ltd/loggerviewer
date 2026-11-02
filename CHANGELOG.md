@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.10] - 2026-11-02
+### Changed
+- **Copy Button**: Replaced click-to-copy on message with dedicated COPY button per row to avoid accidental copies.
+
 ## [1.2.9] - 2026-11-02
 ### Added
 - **Timezone Display**: Log viewer date column converted to configured app timezone (raw content unchanged).
