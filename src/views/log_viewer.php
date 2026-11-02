@@ -71,6 +71,9 @@ $title = htmlspecialchars($file) . " (" . ($type === 'webserver' ? 'Web' : 'PHP'
 </div>
 
 <div style="margin-top: 2rem; display: flex; justify-content: flex-end; align-items: center; gap: 1rem;" class="fade-in">
+    <button id="live-toggle" class="btn-secondary" style="border-radius: 0.75rem; border-color: rgba(16,185,129,0.4); color: #34d399;">
+        LIVE: OFF
+    </button>
     <button id="load-more" class="btn-secondary" style="border-radius: 0.75rem;">
         LOAD PREVIOUS ENTRIES
     </button>

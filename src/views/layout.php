@@ -14,8 +14,8 @@
             <a href="index.php" class="logo">LOGGER<span style="color: var(--text-primary); font-weight: 300;">VIEW</span></a>
             <nav style="display: flex; align-items: center; gap: 1.5rem;">
                 <div style="text-align: right; margin-right: 0.5rem;">
-                    <div style="font-size: 0.9rem; font-weight: 600;"><?= $_SESSION['username'] ?></div>
-                    <span class="badge badge-<?= $_SESSION['role'] ?>"><?= ucfirst($_SESSION['role']) ?></span>
+                    <div style="font-size: 0.9rem; font-weight: 600;"><?= htmlspecialchars($_SESSION["username"], ENT_QUOTES, "UTF-8") ?></div>
+                    <span class="badge badge-<?= htmlspecialchars($_SESSION['role'], ENT_QUOTES, 'UTF-8') ?>"><?= ucfirst(htmlspecialchars($_SESSION['role'], ENT_QUOTES, 'UTF-8')) ?></span>
                 </div>
                 <a href="index.php?action=dashboard" class="btn btn-secondary" style="padding: 0.5rem 1rem; border: none; background: transparent; color: var(--text-secondary);">Projects</a>
                 <a href="index.php?action=changelog" class="btn btn-secondary" style="padding: 0.5rem 1rem; border: none; background: transparent; color: var(--text-secondary);">What's New</a>

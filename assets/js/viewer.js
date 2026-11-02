@@ -16,6 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentSearch = '';
     let isLoading = false;
     let searchTimeout = null;
+    let liveMode = false;
+    let liveTimer = null;
+    let lastFingerprint = null;
+    const seenContents = new Set();
+    let lastHeaders = {};
 
     const logSearchInput = document.getElementById('log-search');
 
@@ -153,7 +158,8 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             if (data.lines && data.lines.length > 0) {
-                const headers = data.headers;
+                const headers = data.headers || lastHeaders;
+                lastHeaders = headers;
                 const isTableMode = Object.keys(headers).length > 0;
 
                 if (isTableMode) {
@@ -186,7 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                      const badgeClass = line.level === 'error' ? 'badge-error' : (line.level === 'warn' ? 'badge-warning' : 'badge-info');
                                      val = `<span class="badge ${badgeClass}">${val}</span>`;
                                  } else if (key === 'message' || key === 'content' || key === 'request') {
-                                     val = `<div class="multiline-content">${highlight(val.replace(/\n/g, '<br>'))}</div>`;
+                                     const rawVal = val;
+                                     val = `<div class="multiline-content" data-raw="${encodeContent(rawVal)}" title="Click to copy">${highlight(val.replace(/\n/g, '<br>'))}</div>`;
                                  } else {
                                      val = highlight(val);
                                  }
@@ -197,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
                          } else {
                              tableHtml += `
                                 <td colspan="${Object.keys(headers).length}" class="log-line-raw ${line.level}">
-                                    <div class="multiline-content">${line.content.replace(/\n/g, '<br>')}</div>
+                                    <div class="multiline-content" data-raw="${encodeContent(line.content)}" title="Click to copy">${line.content.replace(/\n/g, '<br>')}</div>
                                 </td>
                                 <td>${showAi ? getAiBtn(line.content) : ''}</td>
                              `;
@@ -230,13 +237,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         lineEl.style.justifyContent = 'space-between';
                         const showAi = line.level === 'error' || line.level === 'warn';
                         lineEl.innerHTML = `
-                            <div class="multiline-content">${line.content.replace(/\n/g, '<br>')}</div>
+                            <div class="multiline-content" title="Click to copy">${line.content.replace(/\n/g, '<br>')}</div>
                             ${ (showAi ? getAiBtn(line.content) : '') }
                         `;
                         container.appendChild(lineEl);
                     });
                 }
                 
+                if (data.lines) data.lines.forEach(l => seenContents.add(l.content));
+                if (data.stats && data.stats.fingerprint) lastFingerprint = data.stats.fingerprint;
                 const totalText = data.total === -1 ? 'TOO LARGE' : data.total;
                 currentOffset = data.nextOffset;
                 loadMoreBtn.hidden = !data.hasMore;
@@ -270,14 +279,135 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch(e) {
                 window.askAI(atob(encoded));
             }
+            return;
+        }
+
+        // Click-to-copy: clicking a message copies it to clipboard
+        const mc = e.target.closest('.multiline-content');
+        if (mc) {
+            let text = mc.getAttribute('data-raw');
+            if (text) {
+                try { text = decodeURIComponent(escape(atob(text))); } catch (e) { text = mc.innerText || mc.textContent || ''; }
+            } else {
+                text = mc.innerText || mc.textContent || '';
+            }
+            if (!String(text).trim()) return;
+            const doFlash = () => {
+                const prev = mc.style.background;
+                mc.style.transition = 'background 0.2s';
+                mc.style.background = 'rgba(16, 185, 129, 0.25)';
+                setTimeout(() => { mc.style.background = prev; }, 900);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(doFlash).catch(() => {});
+            } else {
+                // Fallback
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); doFlash(); } catch (err) {}
+                document.body.removeChild(ta);
+            }
         }
     });
 
     fetchLogs();
 
+
+    const buildRowHtml = (line, headers) => {
+        const showAi = line.level === 'error' || (line.parsed && line.parsed.columns && line.parsed.columns.status >= 400);
+        let cells = '';
+        if (line.parsed) {
+            Object.keys(headers).forEach(key => {
+                let val = line.parsed.columns[key] || '-';
+                let classes = 'col-' + key;
+                if (key === 'status') {
+                    const status = parseInt(val);
+                    const badgeClass = status >= 500 ? 'badge-error' : (status >= 400 ? 'badge-warning' : 'badge-user');
+                    val = `<span class="badge ${badgeClass}">${val}</span>`;
+                } else if (key === 'level') {
+                    const badgeClass = line.level === 'error' ? 'badge-error' : (line.level === 'warn' ? 'badge-warning' : 'badge-info');
+                    val = `<span class="badge ${badgeClass}">${val}</span>`;
+                } else if (key === 'message' || key === 'content' || key === 'request') {
+                    val = `<div class="multiline-content" data-raw="${encodeContent(val)}" title="Click to copy">${escapeHTML(val).replace(/\n/g, '<br>')}</div>`;
+                } else {
+                    val = escapeHTML(val);
+                }
+                cells += `<td class="${classes}">${val}</td>`;
+            });
+            cells += `<td>${showAi ? '' : ''}</td>`;
+        } else {
+            cells = `<td colspan="${Object.keys(headers).length}" class="log-line-raw ${line.level}"><div class="multiline-content" data-raw="${encodeContent(line.content)}" title="Click to copy">${line.content.replace(/\n/g, '<br>')}</div></td><td></td>`;
+        }
+        return `<tr class="log-row ${line.level}">${cells}</tr>`;
+    };
+
+    const pollLive = async () => {
+        if (!liveMode) return;
+        try {
+            const url = `index.php?action=api_logs&project_id=${CONFIG.projectId}&type=${CONFIG.type}&file=${encodeURIComponent(CONFIG.file)}&offset=0&filter=${currentFilter}&q=${encodeURIComponent(currentSearch)}&limit=50`;
+            const response = await fetch(url);
+            const data = await response.json();
+            if (!data.lines || data.lines.length === 0) return;
+            if (data.stats && data.stats.fingerprint && data.stats.fingerprint === lastFingerprint) return;
+
+            const newEntries = data.lines.filter(l => !seenContents.has(l.content));
+            if (newEntries.length === 0) {
+                if (data.stats && data.stats.fingerprint) lastFingerprint = data.stats.fingerprint;
+                return;
+            }
+
+            const headers = data.headers || lastHeaders;
+            lastHeaders = headers;
+            const isTableMode = Object.keys(headers).length > 0;
+
+            if (isTableMode) {
+                const tbody = container.querySelector('tbody');
+                if (tbody) {
+                    const html = newEntries.map(l => buildRowHtml(l, headers)).join('');
+                    tbody.insertAdjacentHTML('afterbegin', html);
+                } else {
+                    // fallback: rebuild
+                    fetchLogs(0, currentFilter, false);
+                    return;
+                }
+            } else {
+                newEntries.slice().reverse().forEach(l => {
+                    const el = document.createElement('div');
+                    el.className = `log-line ${l.level}`;
+                    el.style.display = 'flex';
+                    el.style.justifyContent = 'space-between';
+                    el.innerHTML = `<div class="multiline-content" data-raw="${encodeContent(l.content)}" title="Click to copy">${l.content.replace(/\n/g, '<br>')}</div>`;
+                    container.insertBefore(el, container.firstChild);
+                });
+            }
+
+            newEntries.forEach(l => seenContents.add(l.content));
+            if (data.stats && data.stats.fingerprint) lastFingerprint = data.stats.fingerprint;
+        } catch (e) {
+            console.error('Live poll error:', e);
+        }
+    };
+
     loadMoreBtn.addEventListener('click', () => {
         fetchLogs(currentOffset, currentFilter, true);
     });
+    const liveToggleBtn = document.getElementById('live-toggle');
+    if (liveToggleBtn) {
+        liveToggleBtn.addEventListener('click', () => {
+            liveMode = !liveMode;
+            liveToggleBtn.textContent = liveMode ? 'LIVE: ON' : 'LIVE: OFF';
+            liveToggleBtn.style.color = liveMode ? '#ef4444' : '#34d399';
+            if (liveMode) {
+                liveTimer = setInterval(pollLive, 3000);
+                pollLive();
+            } else {
+                if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+            }
+        });
+    }
+
 
     filterBtns.forEach(btn => {
         btn.addEventListener('click', () => {

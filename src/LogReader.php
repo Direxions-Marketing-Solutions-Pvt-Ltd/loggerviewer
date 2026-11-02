@@ -157,7 +157,11 @@ class LogReader
 
         $isGz = str_ends_with($filePath, '.gz');
         if ($isGz) {
-            // Fallback to legacy behavior for compressed files for now
+            $cached = $this->decompressGzCached($filePath);
+            if ($cached !== null && file_exists($cached)) {
+                return $this->readLogEnhanced($cached, $offset, $limit, $filter, $query);
+            }
+            // Fallback if decompression failed
             return $this->readLogLegacy($filePath, $offset, $limit, $filter, $query);
         }
 
@@ -193,7 +197,7 @@ class LogReader
             $fingerprint = sha1(implode("\n", $lastLines));
         }
 
-        $chunkSize = 8192;
+        $chunkSize = 65536; // 64KB chunks
         $lineRemainder = '';
 
         while ($count < $limit && $pos > 0) {
@@ -226,28 +230,35 @@ class LogReader
                         }
                     }
 
-                    $level = $this->detectLevel($line, $parsed['fields']);
-                    if ($filter !== 'all' && $level !== $filter) {
-                        continue;
-                    }
-
                     $entry = [
                         'content' => $line,
-                        'level' => $level,
+                        'level' => $this->detectLevel($line, $parsed['fields']),
                         'parsed' => [
                             'type' => $matchedFormat,
                             'columns' => $parsed['fields']
                         ]
                     ];
 
-                    // Handle Multiline Buffer
+                    // Handle Multiline Buffer (attach continuation lines for any format)
                     if (!empty($buffer)) {
-                        $multilineKey = $this->formats[$matchedFormat]['multiline'] ?? null;
+                        $bufText = implode("\n", array_reverse($buffer));
+                        $entry['content'] .= "\n" . $bufText;
+                        $multilineKey = ($matchedFormat && isset($this->formats[$matchedFormat]['multiline']))
+                            ? $this->formats[$matchedFormat]['multiline'] : null;
                         if ($multilineKey && isset($entry['parsed']['columns'][$multilineKey])) {
-                            $entry['parsed']['columns'][$multilineKey] .= "\n" . implode("\n", array_reverse($buffer));
-                            $entry['content'] .= "\n" . implode("\n", array_reverse($buffer));
+                            $entry['parsed']['columns'][$multilineKey] .= "\n" . $bufText;
+                        } elseif (isset($entry['parsed']['columns']['message'])) {
+                            $entry['parsed']['columns']['message'] .= "\n" . $bufText;
+                        } elseif (isset($entry['parsed']['columns']['content'])) {
+                            $entry['parsed']['columns']['content'] .= "\n" . $bufText;
                         }
                         $buffer = [];
+                    }
+
+                    // Recompute level from full (possibly multiline) content
+                    $entry['level'] = $this->detectLevel($entry['content'], $parsed['fields']);
+                    if ($filter !== 'all' && $entry['level'] !== $filter) {
+                        continue;
                     }
 
                     $lines[] = $entry;
@@ -279,6 +290,25 @@ class LogReader
                     ];
                 }
             }
+        }
+
+        // Attach any trailing unparsed (multiline) buffer to the oldest parsed entry
+        if (!empty($buffer) && !empty($lines)) {
+            $multilineKey = ($matchedFormat && isset($this->formats[$matchedFormat]['multiline']))
+                ? $this->formats[$matchedFormat]['multiline'] : null;
+            $lastIdx = array_key_last($lines);
+            $bufText = implode("\n", array_reverse($buffer));
+            $lines[$lastIdx]['content'] .= "\n" . $bufText;
+            if ($multilineKey && isset($lines[$lastIdx]['parsed']['columns'][$multilineKey])) {
+                $lines[$lastIdx]['parsed']['columns'][$multilineKey] .= "\n" . $bufText;
+            } elseif (isset($lines[$lastIdx]['parsed']['columns']['message'])) {
+                $lines[$lastIdx]['parsed']['columns']['message'] .= "\n" . $bufText;
+            } elseif (isset($lines[$lastIdx]['parsed']['columns']['content'])) {
+                $lines[$lastIdx]['parsed']['columns']['content'] .= "\n" . $bufText;
+            }
+            // Recompute level from full content
+            $lines[$lastIdx]['level'] = $this->detectLevel($lines[$lastIdx]['content'], $lines[$lastIdx]['parsed']['columns'] ?? []);
+            $buffer = [];
         }
 
         fclose($handle);
@@ -374,6 +404,50 @@ class LogReader
             return ['error' => 0, 'warn' => 0, 'info' => 0, 'samples' => []];
         }
 
+        $isGz = str_ends_with($filePath, '.gz');
+
+        if ($isGz) {
+            $cached = $this->decompressGzCached($filePath);
+            if ($cached !== null && file_exists($cached)) {
+                $filePath = $cached;
+                $isGz = false;
+            }
+        }
+
+        // Compressed files: forward scan (no random seek)
+        if ($isGz) {
+            $stats = ['error' => 0, 'warn' => 0, 'info' => 0];
+            $samples = [];
+            $matchedFormat = null;
+            $untilTimestamp = $sinceTimestamp + 3600;
+            $gz = @gzopen($filePath, 'rb');
+            if (!$gz) {
+                return ['error' => 0, 'warn' => 0, 'info' => 0, 'samples' => []];
+            }
+            while (!gzeof($gz)) {
+                $line = gzgets($gz, 4096);
+                if ($line === false) break;
+                $line = rtrim($line, "\n");
+                if (trim($line) === '') continue;
+                $parsed = $this->parseLineEnhanced($line, $matchedFormat);
+                if ($parsed && isset($parsed['fields']['date'])) {
+                    $ts = $this->parseDateToTimestamp($parsed['fields']['date']);
+                    if (!$ts) continue;
+                    if ($ts < $sinceTimestamp || $ts >= $untilTimestamp) continue;
+                    $level = $this->detectLevel($line, $parsed['fields']);
+                    if (isset($stats[$level])) {
+                        $stats[$level]++;
+                        if ($level === 'error' && count($samples) < 500) {
+                            $samples[] = $parsed['fields']['message'] ?? $line;
+                        }
+                    }
+                }
+            }
+            gzclose($gz);
+            $stats['samples'] = $samples;
+            return $stats;
+        }
+
         $handle = fopen($filePath, 'rb');
         if (!$handle) {
             return ['error' => 0, 'warn' => 0, 'info' => 0, 'samples' => []];
@@ -387,7 +461,7 @@ class LogReader
         fseek($handle, 0, SEEK_END);
         $totalBytes = ftell($handle);
         $pos = $totalBytes;
-        $chunkSize = 32768; // Larger chunk for speed
+        $chunkSize = 262144; // 256KB chunks for speed
         $lineRemainder = '';
         $stop = false;
 
@@ -464,6 +538,7 @@ class LogReader
         
         // 4. Keyword Search (Low Priority)
         if (preg_match('/\b(error|critical|crit|fatal|exception|alert|emergency|emerg)\b/i', $line)) return 'error';
+        if (preg_match('/errormsg|ORA-\d{4,5}/i', $line)) return 'error';
         if (preg_match('/\b(warning|warn|deprecated)\b/i', $line)) return 'warn';
         if (preg_match('/\b(info|information|notice|debug)\b/i', $line)) return 'info';
         
@@ -475,35 +550,65 @@ class LogReader
      */
     private function readLogLegacy(string $filePath, int $offset, int $limit, string $filter, string $query = ''): array
     {
-        $escapedPath = escapeshellarg($filePath);
-        $start = $offset + 1;
-        $end = $offset + $limit;
-        
-        $shellPatterns = [
-            'error' => "\\b(error|critical|crit|fatal|exception|alert|emergency|emerg)\\b|\" 5[0-9]{2} ",
-            'warn'  => "\\b(warning|warn|deprecated)\\b|\" 4[0-9]{2} ",
-            'info'  => "\\b(info|information|notice|debug)\\b|\\[[0-9]{2}/[A-Z][a-z]{2}/[0-9]{4}:"
-        ];
+        // Pure-PHP gz reader (no shell dependency)
+        $rawLines = [];
+        if (str_ends_with($filePath, '.gz')) {
+            $gz = @gzopen($filePath, 'rb');
+            if ($gz) {
+                while (!gzeof($gz)) {
+                    $line = gzgets($gz, 4096);
+                    if ($line === false) break;
+                    $rawLines[] = rtrim($line, "\n");
+                }
+                gzclose($gz);
+            }
+        } else {
+            $handle = @fopen($filePath, 'rb');
+            if ($handle) {
+                while (($line = fgets($handle)) !== false) {
+                    $rawLines[] = rtrim($line, "\n");
+                }
+                fclose($handle);
+            }
+        }
 
-        $cmd = "zcat $escapedPath | tac";
-        if ($filter !== 'all' && isset($shellPatterns[$filter])) {
-            $cmd .= " | grep -E -i " . escapeshellarg($shellPatterns[$filter]);
+        // Reverse to newest-first
+        $rawLines = array_reverse($rawLines);
+
+        // Filter
+        $filtered = [];
+        foreach ($rawLines as $line) {
+            if ($line === '') continue;
+            if ($filter !== 'all') {
+                $lvl = $this->detectLevel($line, []);
+                if ($lvl !== $filter) {
+                    // fallback keyword check for gz path
+                    $patterns = [
+                        'error' => '/\b(error|critical|crit|fatal|exception|alert|emergency|emerg)\b/i',
+                        'warn'  => '/\b(warning|warn|deprecated)\b/i',
+                        'info'  => '/\b(info|information|notice|debug)\b/i',
+                    ];
+                    if (isset($patterns[$filter]) && !preg_match($patterns[$filter], $line)) {
+                        continue;
+                    }
+                    if (!isset($patterns[$filter])) {
+                        continue;
+                    }
+                }
+            }
+            if (!empty($query) && stripos($line, $query) === false) {
+                continue;
+            }
+            $filtered[] = $line;
         }
-        if (!empty($query)) {
-            $cmd .= " | grep -i " . escapeshellarg($query);
-        }
-        $cmd .= " | sed -n '{$start},{$end}p'";
-        
-        $output = shell_exec($cmd);
-        $rawLines = $output ? explode("\n", rtrim($output)) : [];
-        
+
+        $slice = array_slice($filtered, $offset, $limit);
+
         $lines = [];
         $matchedFormat = null;
         $headers = [];
 
-        foreach ($rawLines as $line) {
-            if (empty($line)) continue;
-            
+        foreach ($slice as $line) {
             $parsed = $this->parseLineEnhanced($line, $matchedFormat);
             $entry = [
                 'content' => rtrim($line),
@@ -524,8 +629,8 @@ class LogReader
         return [
             'lines' => $lines,
             'headers' => $headers,
-            'nextOffset' => $offset + count($rawLines), 
-            'hasMore' => count($rawLines) >= $limit
+            'nextOffset' => $offset + count($slice),
+            'hasMore' => ($offset + count($slice)) < count($filtered)
         ];
     }
 
@@ -562,11 +667,76 @@ class LogReader
                 return 0;
             }
 
-            $output = trim(shell_exec($cmd));
-            return (int)$output;
+            $output = trim((string)shell_exec($cmd));
+            if ($output !== '' && is_numeric($output)) {
+                return (int)$output;
+            }
+
+            // PHP fallback when shell tools are unavailable
+            return $this->countLinesPhp($filePath, $filter, $patterns);
         } catch (\Throwable $e) {
              return 0;
         }
+    }
+
+    private function countLinesPhp(string $filePath, string $filter, array $patterns): int
+    {
+        $count = 0;
+        $handle = null;
+        if (str_ends_with($filePath, '.gz')) {
+            $handle = @gzopen($filePath, 'rb');
+        } else {
+            $handle = @fopen($filePath, 'rb');
+        }
+        if (!$handle) return 0;
+
+        $read = str_ends_with($filePath, '.gz') ? 'gzgets' : 'fgets';
+        while (!($read === 'gzgets' ? gzeof($handle) : feof($handle))) {
+            $line = $read($handle);
+            if ($line === false) break;
+            if ($filter === 'all') {
+                $count++;
+            } elseif (isset($patterns[$filter])) {
+                // simple keyword heuristic matching original patterns
+                $lvl = $this->detectLevel($line, []);
+                if ($lvl === $filter) $count++;
+            }
+        }
+        if (str_ends_with($filePath, '.gz')) gzclose($handle); else fclose($handle);
+        return $count;
+    }
+
+    private function decompressGzCached(string $gzPath): ?string
+    {
+        $mtime = @filemtime($gzPath) ?: 0;
+        $size = @filesize($gzPath) ?: 0;
+        $key = md5($gzPath . '|' . $mtime . '|' . $size);
+        $tmpDir = sys_get_temp_dir();
+        $target = $tmpDir . DIRECTORY_SEPARATOR . 'lv_gz_' . $key . '.log';
+
+        if (file_exists($target) && filesize($target) > 0) {
+            return $target;
+        }
+
+        // Decompress in chunks to keep memory low
+        $in = @gzopen($gzPath, 'rb');
+        if (!$in) {
+            return null;
+        }
+        $out = @fopen($target, 'wb');
+        if (!$out) {
+            gzclose($in);
+            return null;
+        }
+        while (!gzeof($in)) {
+            $chunk = gzread($in, 1 << 20); // 1MB chunks
+            if ($chunk === false) break;
+            fwrite($out, $chunk);
+        }
+        fclose($out);
+        gzclose($in);
+
+        return file_exists($target) ? $target : null;
     }
 
     private function getLinesFromBottom(string $file, int $count = 1): array

@@ -3,7 +3,7 @@ date_default_timezone_set('UTC');
 $db = new \App\Database(DB_PATH);
 $projectManager = new \App\Project($db);
 $projectId = (int)($_GET['project_id'] ?? 0);
-// Fetch stats for the last 48 hours (to cover timezone offsets)
+// Fetch stats for the last 24 hours
 $since = date('Y-m-d H:i:s', strtotime('-48 hours'));
 $where = "timestamp >= ?";
 $params = [$since];
@@ -25,12 +25,21 @@ $statsRaw = $db->get_results(
     $params
 );
 
+// Pre-compute distinct dates per project to decide label format
+$distinctDates = [];
+foreach ($statsRaw as $r) {
+    $distinctDates[$r->project_id][date('Y-m-d', strtotime($r->timestamp))] = true;
+}
+
 $chartData = [];
 $totals = ['errors' => 0, 'warns' => 0, 'info' => 0];
 $frequentErrors = [];
 
 foreach ($statsRaw as $row) {
-    $ts = date('H:i', strtotime($row->timestamp));
+    $multiDay = count($distinctDates[$row->project_id]) > 1;
+    $ts = $multiDay
+        ? date('M j H:i', strtotime($row->timestamp))
+        : date('H:i', strtotime($row->timestamp));
     if (!isset($chartData[$row->project_id])) {
         $chartData[$row->project_id] = [
             'labels' => [],
@@ -68,7 +77,7 @@ $title = "Visual Analytics";
     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 3rem;">
         <div>
             <h1 style="font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 0.5rem;">LOG ANALYTICS</h1>
-            <p style="color: var(--text-secondary);">Hour-by-hour trend analysis across your infrastructure (Last 24h).</p>
+            <p style="color: var(--text-secondary);">Hour-by-hour trend analysis across your infrastructure (Last 48h).</p>
         </div>
         <div style="display: flex; gap: 1.5rem;">
             <div class="card glass-panel" style="padding: 1rem 2rem; border-left: 4px solid #ef4444;">
@@ -87,7 +96,7 @@ $title = "Visual Analytics";
             <div style="color: var(--text-secondary); margin-bottom: 1rem;">
                 <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
             </div>
-            <h3>No statistics discovered for the last 24 hours.</h3>
+            <h3>No statistics discovered for the last 48 hours.</h3>
             <p style="color: var(--text-muted); font-size: 0.9rem;">You can wait for the hourly collector or initialize historical data now:</p>
             <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; align-items: center;">
                 <div style="background: rgba(0,0,0,0.2); padding: 0.75rem 1rem; border-radius: 0.5rem; border: 1px solid var(--card-border); width: fit-content;">

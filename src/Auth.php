@@ -80,9 +80,17 @@ class Auth
 
     private function setSession($user): void
     {
+        session_regenerate_id(true);
         $_SESSION['user_id'] = $user->id;
         $_SESSION['username'] = $user->username;
         $_SESSION['role'] = $user->role;
+
+        // Force password change if default admin password is still in use
+        if ($user->username === 'admin' && password_verify(hash_hmac('sha256', 'admin123', AUTH_SECRET), $user->password)) {
+            $_SESSION['force_password_change'] = true;
+        } else {
+            unset($_SESSION['force_password_change']);
+        }
     }
 
     public function logout(): void
@@ -124,4 +132,45 @@ class Auth
 
         return $access !== false;
     }
+
+    private function attemptKey(string $identifier): string
+    {
+        return 'lv_attempts_' . md5($identifier);
+    }
+
+    public function isLockedOut(string $identifier): bool
+    {
+        $key = $this->attemptKey($identifier);
+        $data = $_SESSION[$key] ?? null;
+        if (!is_array($data)) {
+            return false;
+        }
+        if (!empty($data['lock_until']) && time() < (int)$data['lock_until']) {
+            return true;
+        }
+        if (time() - (int)($data['first'] ?? time()) > 900) {
+            unset($_SESSION[$key]);
+        }
+        return false;
+    }
+
+    public function recordFailure(string $identifier): void
+    {
+        $key = $this->attemptKey($identifier);
+        $data = $_SESSION[$key] ?? ['count' => 0, 'first' => time(), 'lock_until' => 0];
+        if (time() - (int)($data['first'] ?? time()) > 900) {
+            $data = ['count' => 0, 'first' => time(), 'lock_until' => 0];
+        }
+        $data['count'] = (int)($data['count'] ?? 0) + 1;
+        if ($data['count'] >= 5) {
+            $data['lock_until'] = time() + 900;
+        }
+        $_SESSION[$key] = $data;
+    }
+
+    public function clearAttempts(string $identifier): void
+    {
+        unset($_SESSION[$this->attemptKey($identifier)]);
+    }
+
 }

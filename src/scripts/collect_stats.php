@@ -45,8 +45,7 @@ foreach ($projects as $project) {
     if (!empty($project->webserver_path)) {
         $reader = new LogReader($project->webserver_path, $project->webserver_format);
         foreach ($reader->getLogFiles() as $file) {
-            if ($file['type'] === 'text') {
-                echo " - Scanning webserver log: {$file['name']}...";
+            echo " - Scanning webserver log: {$file['name']}...";
                 $hourly = $reader->getHourlyStats($file['name'], $targetHourTs);
                 $stats['error'] += $hourly['error'];
                 $stats['warn']  += $hourly['warn'];
@@ -57,7 +56,6 @@ foreach ($projects as $project) {
                     $errorMessages[$msg] = ($errorMessages[$msg] ?? 0) + 1;
                 }
                 echo " Done (E:{$hourly['error']}, W:{$hourly['warn']}, I:{$hourly['info']})\n";
-            }
         }
     }
 
@@ -65,8 +63,7 @@ foreach ($projects as $project) {
     if (!empty($project->php_path)) {
         $reader = new LogReader($project->php_path, $project->php_format);
         foreach ($reader->getLogFiles() as $file) {
-            if ($file['type'] === 'text') {
-                echo " - Scanning PHP log: {$file['name']}...";
+            echo " - Scanning PHP log: {$file['name']}...";
                 $hourly = $reader->getHourlyStats($file['name'], $targetHourTs);
                 $stats['error'] += $hourly['error'];
                 $stats['warn']  += $hourly['warn'];
@@ -77,7 +74,6 @@ foreach ($projects as $project) {
                     $errorMessages[$msg] = ($errorMessages[$msg] ?? 0) + 1;
                 }
                 echo " Done (E:{$hourly['error']}, W:{$hourly['warn']}, I:{$hourly['info']})\n";
-            }
         }
     }
 

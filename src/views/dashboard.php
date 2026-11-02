@@ -69,6 +69,9 @@ if (isset($_GET['msg'])) {
     } elseif ($_GET['msg'] === 'deleted') {
         $msg = 'Project deleted successfully.';
         $msgType = 'success';
+    } elseif ($_GET['msg'] === 'password_changed') {
+        $msg = 'Password updated successfully.';
+        $msgType = 'success';
     }
 }
 

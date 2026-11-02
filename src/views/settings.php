@@ -26,24 +26,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
         $msg = "Error: Cannot save settings because .env is read-only.";
         $msgType = "error";
     } else {
-        $newSecret = $_POST['auth_secret'] ?? AUTH_SECRET;
-        
         $settings = [
             'APP_TITLE' => $_POST['app_title'] ?? 'Logger View',
             'DB_PATH' => $_POST['db_path'] ?? 'data/database.sqlite',
-            'AUTH_SECRET' => $newSecret,
             
             'SMTP_HOST' => $_POST['smtp_host'] ?? '',
             'SMTP_PORT' => $_POST['smtp_port'] ?? '587',
             'SMTP_ENCRYPTION' => $_POST['smtp_encryption'] ?? 'tls',
             'SMTP_USER' => $_POST['smtp_user'] ?? '',
-            'SMTP_PASS' => \App\Encryption::encrypt($_POST['smtp_pass'] ?? '', $newSecret),
+            'SMTP_PASS' => \App\Encryption::encrypt($_POST['smtp_pass'] ?? ''),
             'SMTP_FROM_EMAIL' => $_POST['smtp_from_email'] ?? '',
             'SMTP_FROM_NAME' => $_POST['smtp_from_name'] ?? 'Logger View',
             
             'AI_ENABLED' => isset($_POST['ai_enabled']) ? 'true' : 'false',
             'AI_API_URL' => $_POST['ai_api_url'] ?? 'https://api.openai.com/v1/chat/completions',
-            'AI_API_KEY' => \App\Encryption::encrypt($_POST['ai_api_key'] ?? '', $newSecret),
+            'AI_API_KEY' => \App\Encryption::encrypt($_POST['ai_api_key'] ?? ''),
             'AI_MODEL' => $_POST['ai_model'] ?? 'gpt-4-turbo',
             
             'DEFAULT_AUTH_TYPE' => $_POST['default_auth_type'] ?? 'otp',
@@ -102,11 +99,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
                             <input type="text" name="app_title" value="<?= htmlspecialchars(APP_TITLE) ?>">
                         </div>
                         <div class="form-group">
-                            <label>Auth Secret (Used for Password Pepper & Encryption)</label>
-                            <input type="password" name="auth_secret" value="<?= htmlspecialchars(AUTH_SECRET) ?>">
-                            <p style="font-size: 0.75rem; color: #f87171; margin-top: 0.5rem;">
-                                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:inline; vertical-align:middle;"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                                WARNING: Changing this will invalidate ALL existing passwords and encrypted API keys.
+                            <label>Auth Secret (Managed via CLI only)</label>
+                            <input type="password" value="••••••••••••••••••••••••••••••••" disabled style="opacity:0.6;">
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">
+                                Rotate with: <code>php src/scripts/update_secret.php</code>
                             </p>
                         </div>
                     </div>

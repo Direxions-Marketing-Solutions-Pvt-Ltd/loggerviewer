@@ -53,29 +53,15 @@ foreach ($projects as $project) {
         }
         arsort($topErrors);
 
-        try {
-            $db->insert('stats', [
-                'project_id' => $project->id,
-                'timestamp' => $timestamp,
-                'error_count' => $errorsCount,
-                'warn_count' => $warnsCount,
-                'info_count' => $infosCount,
-                'top_errors' => json_encode($topErrors)
-            ]);
-            echo " - Seeded {$timestamp}\n";
-        } catch (\Throwable $e) {
-            // Already exists, skip or update
-             $db->update('stats', [
-                'error_count' => $errorsCount,
-                'warn_count' => $warnsCount,
-                'info_count' => $infosCount,
-                'top_errors' => json_encode($topErrors)
-            ], [
-                'project_id' => $project->id,
-                'timestamp' => $timestamp
-            ]);
-            echo " - Updated {$timestamp} (existing)\n";
-        }
+        $db->insert('stats', [
+            'project_id' => $project->id,
+            'timestamp' => $timestamp,
+            'error_count' => $errorsCount,
+            'warn_count' => $warnsCount,
+            'info_count' => $infosCount,
+            'top_errors' => json_encode($topErrors)
+        ], true); // REPLACE mode for idempotent seeding
+        echo " - Seeded {$timestamp}\n";
     }
 }
 

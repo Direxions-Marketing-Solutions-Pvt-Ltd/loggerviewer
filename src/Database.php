@@ -10,6 +10,13 @@ use PDOStatement;
 
 class Database
 {
+    private function assertIdentifier(string $name): void
+    {
+        if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name)) {
+            throw new \InvalidArgumentException("Invalid SQL identifier: $name");
+        }
+    }
+
     private ?PDO $pdo = null;
     public string $last_error = '';
 
@@ -50,6 +57,10 @@ class Database
 
     public function insert(string $table, array $data, bool $replace = false): int|string|bool
     {
+        $this->assertIdentifier($table);
+        foreach (array_keys($data) as $k) {
+            $this->assertIdentifier((string)$k);
+        }
         $keys = array_keys($data);
         $fields = '"' . implode('", "', $keys) . '"';
         $placeholders = implode(', ', array_fill(0, count($keys), '?'));
@@ -63,6 +74,10 @@ class Database
 
     public function update(string $table, array $data, array $where): bool
     {
+        $this->assertIdentifier($table);
+        foreach (array_merge(array_keys($data), array_keys($where)) as $k) {
+            $this->assertIdentifier((string)$k);
+        }
         $set = [];
         $params = [];
         foreach ($data as $key => $value) {
@@ -82,6 +97,10 @@ class Database
 
     public function delete(string $table, array $where): bool
     {
+        $this->assertIdentifier($table);
+        foreach (array_keys($where) as $k) {
+            $this->assertIdentifier((string)$k);
+        }
         $where_clause = [];
         $params = [];
         foreach ($where as $key => $value) {

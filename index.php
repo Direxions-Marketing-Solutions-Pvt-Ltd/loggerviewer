@@ -24,6 +24,15 @@ if (!Auth::isLoggedIn() && $action !== 'login') {
     exit;
 }
 
+// Force password change for default admin credentials
+if (Auth::isLoggedIn() && !empty($_SESSION['force_password_change'])) {
+    $allowed = ['change_password', 'logout'];
+    if (!in_array($action, $allowed, true) && strpos($action, 'api_') !== 0) {
+        header('Location: index.php?action=change_password');
+        exit;
+    }
+}
+
 // OWASP: CSRF Protection for all POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $token = $_POST['csrf_token'] ?? '';
@@ -38,16 +47,24 @@ ob_start();
 switch ($action) {
     case 'login':
         $error = null;
+        if (isset($_GET['reset']) && $_GET['reset'] === '1') {
+            unset($_SESSION['otp_pending_user_id']);
+        }
         $otpPending = $_SESSION['otp_pending_user_id'] ?? null;
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (isset($_POST['otp'])) {
                 // Step 2: Verify OTP
-                if ($auth->loginWithOtp((int)$otpPending, $_POST['otp'])) {
+                $otpIdentifier = 'otp:' . (int)$otpPending . '|' . ($_SERVER['REMOTE_ADDR'] ?? '');
+                if ($auth->isLockedOut($otpIdentifier)) {
+                    $error = 'Too many failed attempts. Please try again later.';
+                } elseif ($auth->loginWithOtp((int)$otpPending, $_POST['otp'])) {
+                    $auth->clearAttempts($otpIdentifier);
                     unset($_SESSION['otp_pending_user_id']);
                     header('Location: index.php?action=dashboard');
                     exit;
                 } else {
+                    $auth->recordFailure($otpIdentifier);
                     $error = 'Invalid or expired OTP code.';
                 }
             } else {
@@ -58,7 +75,10 @@ switch ($action) {
                 $user = $auth->getUserByUsername($username);
 
                 if ($user) {
-                    if ($loginMode === 'otp' || $user->auth_type === 'otp') {
+                    $otpSendIdentifier = $username . '|' . ($_SERVER['REMOTE_ADDR'] ?? '');
+                    if ($auth->isLockedOut($otpSendIdentifier)) {
+                        $error = 'Too many failed attempts. Please try again later.';
+                    } elseif ($loginMode === 'otp' || $user->auth_type === 'otp') {
                         if (empty($user->email)) {
                             $error = 'No email configured for this user. Cannot send OTP.';
                         } else {
@@ -73,10 +93,15 @@ switch ($action) {
                         }
                     } else {
                         // Password Login
-                        if ($auth->login($username, $password)) {
+                        $identifier = $username . '|' . ($_SERVER['REMOTE_ADDR'] ?? '');
+                        if ($auth->isLockedOut($identifier)) {
+                            $error = 'Too many failed attempts. Please try again later.';
+                        } elseif ($auth->login($username, $password)) {
+                            $auth->clearAttempts($identifier);
                             header('Location: index.php?action=dashboard');
                             exit;
                         } else {
+                            $auth->recordFailure($identifier);
                             $error = 'Invalid username or password';
                         }
                     }
@@ -190,8 +215,18 @@ switch ($action) {
             exit;
         }
 
-        $folderType = $_GET['type']; // 'webserver' or 'php'
-        $filename = $_GET['file'];
+        $folderType = $_GET['type'] ?? ''; // 'webserver' or 'php'
+        if (!in_array($folderType, ['webserver', 'php'], true)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid log type']);
+            exit;
+        }
+        $filename = $_GET['file'] ?? '';
+        if ($filename === '') {
+            http_response_code(400);
+            echo json_encode(['error' => 'Missing file']);
+            exit;
+        }
         $offset = (int)($_GET['offset'] ?? 0);
         $filter = $_GET['filter'] ?? 'all';
         $query = $_GET['q'] ?? '';
@@ -253,6 +288,33 @@ switch ($action) {
             echo json_encode(['error' => 'Internal Server Error: ' . $e->getMessage()]);
         }
         exit;
+
+    case 'change_password':
+        if (!\App\Auth::isLoggedIn()) {
+            header('Location: index.php?action=login');
+            exit;
+        }
+        $cpError = null;
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $new = $_POST['new_password'] ?? '';
+            $confirm = $_POST['confirm_password'] ?? '';
+            if (strlen($new) < 8) {
+                $cpError = 'Password must be at least 8 characters.';
+            } elseif ($new !== $confirm) {
+                $cpError = 'Passwords do not match.';
+            } else {
+                $um = new \App\User($db);
+                if ($um->update((int)$_SESSION['user_id'], ['password' => $new])) {
+                    unset($_SESSION['force_password_change']);
+                    header('Location: index.php?action=dashboard&msg=password_changed');
+                    exit;
+                } else {
+                    $cpError = 'Failed to update password.';
+                }
+            }
+        }
+        require __DIR__ . '/src/views/change_password.php';
+        break;
 
     case 'dashboard':
     default:
