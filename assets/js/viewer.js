@@ -21,6 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastFingerprint = null;
     const seenContents = new Set();
     let lastHeaders = {};
+    const AI_ICON = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>';
+    const COPY_ICON = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+    const CHECK_ICON = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>';
 
     const logSearchInput = document.getElementById('log-search');
 
@@ -149,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!CONFIG.aiEnabled) return '';
                 const safeContent = encodeContent(content);
                 return `
-                    <button data-ai-content="${safeContent}" 
+                    <button data-ai-content="${safeContent}" title="Ask AI"
                             class="btn-secondary pulse-ai ask-ai-btn" 
                             style="padding: 0.25rem 0.51rem; font-size: 0.7rem; margin-left: 1rem; border-color: rgba(139, 92, 246, 0.4); color: #a78bfa; font-weight: 800;">
                         ASK AI
@@ -289,10 +292,10 @@ document.addEventListener('DOMContentLoaded', () => {
             try { text = decodeURIComponent(escape(atob(encoded))); } catch (e) { text = ''; }
             if (!text.trim()) return;
             const doFlash = () => {
-                const orig = copyBtn2.textContent;
-                copyBtn2.textContent = 'COPIED';
+                const orig = copyBtn2.innerHTML;
+                copyBtn2.innerHTML = CHECK_ICON;
                 copyBtn2.style.color = '#10b981';
-                setTimeout(() => { copyBtn2.textContent = 'COPY'; copyBtn2.style.color = ''; }, 1200);
+                setTimeout(() => { copyBtn2.innerHTML = COPY_ICON; copyBtn2.style.color = ''; }, 1200);
             };
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(doFlash).catch(() => {});
@@ -362,10 +365,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 cells += `<td class="${classes}">${val}</td>`;
             });
             const rawForCopy = (line.parsed && (line.parsed.columns.message || line.parsed.columns.content || line.parsed.columns.request)) || line.content || '';
-            const copyBtn = `<button data-copy-content="${encodeContent(rawForCopy)}" class="btn-secondary copy-btn" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; margin-left: 0.25rem; border-color: rgba(16,185,129,0.4); color: #34d399; font-weight: 800;">COPY</button>`;
+            const copyBtn = `<button data-copy-content="${encodeContent(rawForCopy)}" title="Copy message" class="btn-secondary copy-btn" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; margin-left: 0.25rem; border-color: rgba(16,185,129,0.4); color: #34d399; font-weight: 800;">${COPY_ICON}</button>`;
             cells += `<td>${showAi ? getAiBtn(line.content) : ''} ${copyBtn}</td>`;
         } else {
-            cells = `<td colspan="${Object.keys(headers).length}" class="log-line-raw ${line.level}"><div class="multiline-content" data-raw="${encodeContent(line.content)}">${line.content.replace(/\n/g, '<br>')}</div></td><td><button data-copy-content="${encodeContent(line.content)}" class="btn-secondary copy-btn" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; border-color: rgba(16,185,129,0.4); color: #34d399; font-weight: 800;">COPY</button></td>`;
+            cells = `<td colspan="${Object.keys(headers).length}" class="log-line-raw ${line.level}"><div class="multiline-content" data-raw="${encodeContent(line.content)}">${line.content.replace(/\n/g, '<br>')}</div></td><td><button data-copy-content="${encodeContent(line.content)}" title="Copy message" class="btn-secondary copy-btn" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; border-color: rgba(16,185,129,0.4); color: #34d399; font-weight: 800;">${COPY_ICON}</button></td>`;
         }
         return `<tr class="log-row ${line.level}">${cells}</tr>`;
     };
@@ -405,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     el.className = `log-line ${l.level}`;
                     el.style.display = 'flex';
                     el.style.justifyContent = 'space-between';
-                    el.innerHTML = `<div class="multiline-content" data-raw="${encodeContent(l.content)}">${l.content.replace(/\n/g, '<br>')}</div><button data-copy-content="${encodeContent(l.content)}" class="btn-secondary copy-btn" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; margin-left: 0.5rem; border-color: rgba(16,185,129,0.4); color: #34d399; font-weight: 800;">COPY</button>`;
+                    el.innerHTML = `<div class="multiline-content" data-raw="${encodeContent(l.content)}">${l.content.replace(/\n/g, '<br>')}</div><button data-copy-content="${encodeContent(l.content)}" title="Copy message" class="btn-secondary copy-btn" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; margin-left: 0.5rem; border-color: rgba(16,185,129,0.4); color: #34d399; font-weight: 800;">${COPY_ICON}</button>`;
                     container.insertBefore(el, container.firstChild);
                 });
             }

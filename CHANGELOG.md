@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.11] - 2026-11-02
+### Changed
+- **Icon Buttons**: Ask AI and Copy now use icons with hover tooltips instead of text.
+
 ## [1.2.10] - 2026-11-02
 ### Changed
 - **Copy Button**: Replaced click-to-copy on message with dedicated COPY button per row to avoid accidental copies.
