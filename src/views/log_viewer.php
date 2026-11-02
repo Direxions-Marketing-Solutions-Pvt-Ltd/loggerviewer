@@ -25,11 +25,14 @@ $title = htmlspecialchars($file) . " (" . ($type === 'webserver' ? 'Web' : 'PHP'
     </div>
     
     <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 1rem;">
-        <div class="filters">
+        <div class="filters" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
             <button class="filter-btn active" data-filter="all">ALL ENTRIES</button>
             <button class="filter-btn" data-filter="error">ERRORS</button>
             <button class="filter-btn" data-filter="warn">WARNINGS</button>
             <button class="filter-btn" data-filter="info">INFORMATION</button>
+            <button id="live-toggle" class="btn-secondary" style="border-radius: 0.75rem; border-color: rgba(16,185,129,0.4); color: #34d399; margin-left: 0.5rem;">
+                LIVE: OFF
+            </button>
         </div>
         
         <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -71,9 +74,6 @@ $title = htmlspecialchars($file) . " (" . ($type === 'webserver' ? 'Web' : 'PHP'
 </div>
 
 <div style="margin-top: 2rem; display: flex; justify-content: flex-end; align-items: center; gap: 1rem;" class="fade-in">
-    <button id="live-toggle" class="btn-secondary" style="border-radius: 0.75rem; border-color: rgba(16,185,129,0.4); color: #34d399;">
-        LIVE: OFF
-    </button>
     <button id="load-more" class="btn-secondary" style="border-radius: 0.75rem;">
         LOAD PREVIOUS ENTRIES
     </button>

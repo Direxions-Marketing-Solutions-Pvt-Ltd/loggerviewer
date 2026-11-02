@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.8] - 2026-11-02
+### Changed
+- **Live Toggle Position**: Moved LIVE toggle to top filter bar for easier access.
+
 ## [1.2.7] - 2026-11-02
 ### Fixed
 - **Login Mode**: Password users no longer get OTP when default auth type is OTP.
