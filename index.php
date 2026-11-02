@@ -78,7 +78,7 @@ switch ($action) {
                     $otpSendIdentifier = $username . '|' . ($_SERVER['REMOTE_ADDR'] ?? '');
                     if ($auth->isLockedOut($otpSendIdentifier)) {
                         $error = 'Too many failed attempts. Please try again later.';
-                    } elseif ($loginMode === 'otp' || $user->auth_type === 'otp') {
+                    } elseif ($user->auth_type !== 'password' && ($loginMode === 'otp' || $user->auth_type === 'otp')) {
                         if (empty($user->email)) {
                             $error = 'No email configured for this user. Cannot send OTP.';
                         } else {

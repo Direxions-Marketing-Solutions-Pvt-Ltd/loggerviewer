@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.7] - 2026-11-02
+### Fixed
+- **Login Mode**: Password users no longer get OTP when default auth type is OTP.
+- **Double Submit**: Disable submit button on login form to prevent duplicate OTP sends.
+
 ## [1.2.6] - 2026-11-02
 ### Added
 - **Configurable Timezone**: `APP_TIMEZONE` setting (default UTC) applied to stats collection, seeding, and analytics; log parsing remains UTC.

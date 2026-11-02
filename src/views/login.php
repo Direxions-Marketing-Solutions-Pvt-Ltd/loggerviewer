@@ -16,7 +16,7 @@
         $mode = $_GET['mode'] ?? DEFAULT_AUTH_TYPE; 
         ?>
 
-        <form method="POST" action="index.php?action=login">
+        <form method="POST" action="index.php?action=login" onsubmit="const b=this.querySelector('button[type=submit]'); if(b){b.disabled=true;b.style.opacity=0.6;}">
             <input type="hidden" name="csrf_token" value="<?= \App\Auth::generateCsrfToken() ?>">
             <input type="hidden" name="login_mode" value="<?= htmlspecialchars($mode) ?>">
             
