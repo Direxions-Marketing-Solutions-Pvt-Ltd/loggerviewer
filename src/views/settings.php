@@ -28,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
     } else {
         $settings = [
             'APP_TITLE' => $_POST['app_title'] ?? 'Logger View',
+            'APP_TIMEZONE' => $_POST['app_timezone'] ?? 'UTC',
             'DB_PATH' => $_POST['db_path'] ?? 'data/database.sqlite',
             
             'SMTP_HOST' => $_POST['smtp_host'] ?? '',
@@ -97,6 +98,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
                         <div class="form-group">
                             <label>Application Title</label>
                             <input type="text" name="app_title" value="<?= htmlspecialchars(APP_TITLE) ?>">
+                        </div>
+                        <div class="form-group">
+                            <label>Application Timezone (e.g. UTC, Asia/Kolkata)</label>
+                            <input type="text" name="app_timezone" value="<?= htmlspecialchars(APP_TIMEZONE) ?>">
                         </div>
                         <div class="form-group">
                             <label>Auth Secret (Managed via CLI only)</label>

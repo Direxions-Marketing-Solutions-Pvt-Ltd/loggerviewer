@@ -1,5 +1,5 @@
 <?php
-date_default_timezone_set('UTC');
+date_default_timezone_set(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'UTC');
 $db = new \App\Database(DB_PATH);
 $projectManager = new \App\Project($db);
 $projectId = (int)($_GET['project_id'] ?? 0);

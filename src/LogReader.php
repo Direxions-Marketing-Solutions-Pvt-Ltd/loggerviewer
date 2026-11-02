@@ -390,7 +390,11 @@ class LogReader
             $normalized = $m[1] . ' ' . $m[2];
         }
 
+        // Parse in UTC regardless of app timezone (server logs are UTC)
+        $prevTz = date_default_timezone_get();
+        date_default_timezone_set('UTC');
         $ts = strtotime($normalized);
+        date_default_timezone_set($prevTz);
         if ($ts === false) return null;
 
         // If no timezone in string, assume UTC (since script/server is UTC)

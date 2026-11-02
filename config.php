@@ -41,6 +41,9 @@ define('AUTH_SECRET', env('AUTH_SECRET', 'replace_with_a_secure_token'));
 // Application Title
 define('APP_TITLE', env('APP_TITLE', 'Logger View'));
 
+// Application Timezone (default UTC)
+define('APP_TIMEZONE', env('APP_TIMEZONE', 'UTC'));
+
 // SMTP Configuration
 define('SMTP_HOST', env('SMTP_HOST'));
 define('SMTP_PORT', (int)env('SMTP_PORT', 587));
@@ -56,3 +59,6 @@ define('AI_ENABLED', env('AI_ENABLED', 'false') === 'true');
 define('AI_API_URL', env('AI_API_URL', 'https://api.openai.com/v1/chat/completions'));
 define('AI_API_KEY', env('AI_API_KEY', ''));
 define('AI_MODEL', env('AI_MODEL', 'gpt-4-turbo'));
+
+// Apply configured timezone
+date_default_timezone_set(APP_TIMEZONE);

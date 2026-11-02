@@ -8,7 +8,7 @@
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../autoload.php';
 
-date_default_timezone_set('UTC');
+date_default_timezone_set(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'UTC');
 
 use App\Database;
 use App\Project;

@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.6] - 2026-11-02
+### Added
+- **Configurable Timezone**: `APP_TIMEZONE` setting (default UTC) applied to stats collection, seeding, and analytics; log parsing remains UTC.
+
 ## [1.2.5] - 2026-11-02
 ### Fixed
 - **Analytics Graph**: Reverted to 48h window and made labels date-aware to avoid hour collisions and sparse graphs.
