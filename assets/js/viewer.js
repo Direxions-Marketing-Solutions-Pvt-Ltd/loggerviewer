@@ -203,13 +203,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                  
                                  tableHtml += `<td class="${classes}">${val}</td>`;
                              });
-                             tableHtml += `<td>${showAi ? getAiBtn(line.content) : ''}</td>`;
+                             const copyBtnMain = `<button data-copy-content="${encodeContent(line.content)}" title="Copy message" class="btn-secondary copy-btn" style="padding: 0.25rem 0.4rem; font-size: 0.7rem; border-color: rgba(16,185,129,0.4); color: #34d399; display:inline-flex; align-items:center; margin-left: 0.25rem;">${COPY_ICON}</button>`;
+                             tableHtml += `<td>${showAi ? getAiBtn(line.content) : ''} ${copyBtnMain}</td>`;
                          } else {
                              tableHtml += `
                                 <td colspan="${Object.keys(headers).length}" class="log-line-raw ${line.level}">
                                     <div class="multiline-content" data-raw="${encodeContent(line.content)}">${line.content.replace(/\n/g, '<br>')}</div>
                                 </td>
-                                <td>${showAi ? getAiBtn(line.content) : ''}</td>
+                                <td>${showAi ? getAiBtn(line.content) : ''} <button data-copy-content="${encodeContent(line.content)}" title="Copy message" class="btn-secondary copy-btn" style="padding: 0.25rem 0.4rem; font-size: 0.7rem; border-color: rgba(16,185,129,0.4); color: #34d399; display:inline-flex; align-items:center; margin-left: 0.25rem;">${COPY_ICON}</button></td>
                              `;
                          }
                          tableHtml += `</tr>`;
@@ -310,34 +311,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Click-to-copy: clicking a message copies it to clipboard
-        const mc = e.target.closest('.multiline-content');
-        if (mc) {
-            let text = mc.getAttribute('data-raw');
-            if (text) {
-                try { text = decodeURIComponent(escape(atob(text))); } catch (e) { text = mc.innerText || mc.textContent || ''; }
-            } else {
-                text = mc.innerText || mc.textContent || '';
-            }
-            if (!String(text).trim()) return;
-            const doFlash = () => {
-                const prev = mc.style.background;
-                mc.style.transition = 'background 0.2s';
-                mc.style.background = 'rgba(16, 185, 129, 0.25)';
-                setTimeout(() => { mc.style.background = prev; }, 900);
-            };
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(doFlash).catch(() => {});
-            } else {
-                // Fallback
-                const ta = document.createElement('textarea');
-                ta.value = text;
-                document.body.appendChild(ta);
-                ta.select();
-                try { document.execCommand('copy'); doFlash(); } catch (err) {}
-                document.body.removeChild(ta);
-            }
-        }
     });
 
     fetchLogs();

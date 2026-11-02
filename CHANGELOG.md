@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.12] - 2026-11-02
+### Fixed
+- **Copy Button Visibility**: Added COPY icon button to normal table view (was only in live-poll rows).
+- **Removed Click-to-Copy**: Message text no longer copies on click.
+
 ## [1.2.11] - 2026-11-02
 ### Changed
 - **Icon Buttons**: Ask AI and Copy now use icons with hover tooltips instead of text.
