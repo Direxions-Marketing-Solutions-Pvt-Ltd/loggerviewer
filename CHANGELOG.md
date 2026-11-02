@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.9] - 2026-11-02
+### Added
+- **Timezone Display**: Log viewer date column converted to configured app timezone (raw content unchanged).
+
 ## [1.2.8] - 2026-11-02
 ### Changed
 - **Live Toggle Position**: Moved LIVE toggle to top filter bar for easier access.

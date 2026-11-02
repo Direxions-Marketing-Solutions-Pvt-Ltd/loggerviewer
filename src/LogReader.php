@@ -159,13 +159,16 @@ class LogReader
         if ($isGz) {
             $cached = $this->decompressGzCached($filePath);
             if ($cached !== null && file_exists($cached)) {
-                return $this->readLogEnhanced($cached, $offset, $limit, $filter, $query);
+                $result = $this->readLogEnhanced($cached, $offset, $limit, $filter, $query);
+                return $this->convertDatesToAppTz($result);
             }
             // Fallback if decompression failed
-            return $this->readLogLegacy($filePath, $offset, $limit, $filter, $query);
+            $result = $this->readLogLegacy($filePath, $offset, $limit, $filter, $query);
+            return $this->convertDatesToAppTz($result);
         }
 
-        return $this->readLogEnhanced($filePath, $offset, $limit, $filter, $query);
+        $result = $this->readLogEnhanced($filePath, $offset, $limit, $filter, $query);
+        return $this->convertDatesToAppTz($result);
     }
 
     /**
@@ -741,6 +744,27 @@ class LogReader
         gzclose($in);
 
         return file_exists($target) ? $target : null;
+    }
+
+    private function convertDatesToAppTz(array $result): array
+    {
+        $tz = defined('APP_TIMEZONE') ? APP_TIMEZONE : 'UTC';
+        if ($tz === 'UTC' || empty($result['lines'])) {
+            return $result;
+        }
+        foreach ($result['lines'] as &$entry) {
+            if (isset($entry['parsed']['columns']['date'])) {
+                $epoch = $this->parseDateToTimestamp((string)$entry['parsed']['columns']['date']);
+                if ($epoch !== null) {
+                    $prev = date_default_timezone_get();
+                    date_default_timezone_set($tz);
+                    $entry['parsed']['columns']['date'] = date('Y-m-d H:i:s', $epoch);
+                    date_default_timezone_set($prev);
+                }
+            }
+        }
+        unset($entry);
+        return $result;
     }
 
     private function getLinesFromBottom(string $file, int $count = 1): array
