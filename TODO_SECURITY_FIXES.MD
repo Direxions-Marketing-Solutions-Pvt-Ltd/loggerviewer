@@ -8,8 +8,8 @@ Reference items by their ID (e.g., "fix SEC-003").
 - [x] SEC-001. **Secrets and database downloadable from web root** — `.env`, `data/database.sqlite` exposed with no access control. Add `.htaccess`/server config denying `.env`, `data/`, `src/`, `*.sqlite`; move `data/` outside web root if possible. (`index.php`, repo root)
 - [x] SEC-002. **Brute-force lockout is per-session (ineffective) + DoS via usleep** — `src/Auth.php:136-174`. Store attempt counts by username+IP in DB/Redis with 15-min TTL; remove/cap sleeps.
 - [ ] SEC-003. **Unauthenticated encryption (CBC, no MAC)** — `src/Encryption.php`. Switch to AES-256-GCM with random IV + auth tag; re-encrypt on rotation.
-- [ ] SEC-004. **Decrypted secrets rendered in settings HTML** — `src/views/settings.php:169,214`. Empty password fields; only update when new value submitted.
-- [ ] SEC-005. **Content-Disposition filename not escaped** — `index.php:197`. Use `rawurlencode(basename($filePath))`.
+- [x] SEC-004. **Decrypted secrets rendered in settings HTML** — `src/views/settings.php:169,214`. Empty password fields; only update when new value submitted.
+- [x] SEC-005. **Content-Disposition filename not escaped** — `index.php:197`. Use `rawurlencode(basename($filePath))`.
 - [ ] SEC-006. **Newline injection in `.env` writer** — `src/ConfigManager.php:43-69`. Reject/strip `\r`/`\n` in keys and values.
 
 ## Should fix

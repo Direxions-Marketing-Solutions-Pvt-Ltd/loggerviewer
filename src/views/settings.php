@@ -35,19 +35,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
             'SMTP_PORT' => $_POST['smtp_port'] ?? '587',
             'SMTP_ENCRYPTION' => $_POST['smtp_encryption'] ?? 'tls',
             'SMTP_USER' => $_POST['smtp_user'] ?? '',
-            'SMTP_PASS' => \App\Encryption::encrypt($_POST['smtp_pass'] ?? ''),
             'SMTP_FROM_EMAIL' => $_POST['smtp_from_email'] ?? '',
             'SMTP_FROM_NAME' => $_POST['smtp_from_name'] ?? 'Logger View',
             
             'AI_ENABLED' => isset($_POST['ai_enabled']) ? 'true' : 'false',
             'AI_API_URL' => $_POST['ai_api_url'] ?? 'https://api.openai.com/v1/chat/completions',
-            'AI_API_KEY' => \App\Encryption::encrypt($_POST['ai_api_key'] ?? ''),
             'AI_MODEL' => $_POST['ai_model'] ?? 'gpt-4-turbo',
             
             'DEFAULT_AUTH_TYPE' => $_POST['default_auth_type'] ?? 'otp',
             'REDIS_HOST' => $_POST['redis_host'] ?? '127.0.0.1',
             'REDIS_PORT' => $_POST['redis_port'] ?? '6379',
         ];
+
+        // Only overwrite secrets when a new value is provided
+        if (!empty($_POST['smtp_pass'])) {
+            $settings['SMTP_PASS'] = \App\Encryption::encrypt($_POST['smtp_pass']);
+        }
+        if (!empty($_POST['ai_api_key'])) {
+            $settings['AI_API_KEY'] = \App\Encryption::encrypt($_POST['ai_api_key']);
+        }
 
         if (\App\ConfigManager::updateEnv($settings)) {
             header('Location: index.php?action=settings&success=1');
@@ -166,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
 
                     <div class="form-group">
                         <label>Password</label>
-                        <input type="password" name="smtp_pass" value="<?= htmlspecialchars(\App\Encryption::decrypt(SMTP_PASS)) ?>">
+                        <input type="password" name="smtp_pass" value="" placeholder="Leave blank to keep current">
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
@@ -211,7 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
 
                         <div class="form-group">
                             <label>API Key</label>
-                            <input type="password" name="ai_api_key" value="<?= htmlspecialchars(\App\Encryption::decrypt(AI_API_KEY)) ?>">
+                            <input type="password" name="ai_api_key" value="" placeholder="Leave blank to keep current">
                         </div>
 
                         <div class="form-group">
