@@ -41,6 +41,14 @@ CREATE TABLE IF NOT EXISTS stats (
     FOREIGN KEY(project_id) REFERENCES projects(id)
 );
 
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT UNIQUE NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    first_at INTEGER NOT NULL,
+    lock_until INTEGER NOT NULL DEFAULT 0
+);
+
 -- Initial Administrator
 -- Default credentials: admin / admin123
 INSERT OR IGNORE INTO users (username, password, role, email, auth_type) 

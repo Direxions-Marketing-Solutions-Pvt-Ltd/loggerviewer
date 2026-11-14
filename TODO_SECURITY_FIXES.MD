@@ -6,7 +6,7 @@ Reference items by their ID (e.g., "fix SEC-003").
 ## Must fix
 
 - [x] SEC-001. **Secrets and database downloadable from web root** — `.env`, `data/database.sqlite` exposed with no access control. Add `.htaccess`/server config denying `.env`, `data/`, `src/`, `*.sqlite`; move `data/` outside web root if possible. (`index.php`, repo root)
-- [ ] SEC-002. **Brute-force lockout is per-session (ineffective) + DoS via usleep** — `src/Auth.php:136-174`. Store attempt counts by username+IP in DB/Redis with 15-min TTL; remove/cap sleeps.
+- [x] SEC-002. **Brute-force lockout is per-session (ineffective) + DoS via usleep** — `src/Auth.php:136-174`. Store attempt counts by username+IP in DB/Redis with 15-min TTL; remove/cap sleeps.
 - [ ] SEC-003. **Unauthenticated encryption (CBC, no MAC)** — `src/Encryption.php`. Switch to AES-256-GCM with random IV + auth tag; re-encrypt on rotation.
 - [ ] SEC-004. **Decrypted secrets rendered in settings HTML** — `src/views/settings.php:169,214`. Empty password fields; only update when new value submitted.
 - [ ] SEC-005. **Content-Disposition filename not escaped** — `index.php:197`. Use `rawurlencode(basename($filePath))`.
@@ -21,12 +21,12 @@ Reference items by their ID (e.g., "fix SEC-003").
 - [ ] SEC-011. **`LogReader::getTotalLines` runs shell commands per request** — `src/LogReader.php:644-687`. Cache counts briefly or compute on demand.
 - [ ] SEC-012. **`Project::setUserProjects` not transactional** — `src/Project.php:73-80`. Wrap in transaction.
 - [ ] SEC-013. **Role values not validated server-side** — `src/User.php:34,84`. Whitelist `['user','admin']`.
-- [ ] SEC-014. **`Auth::logout()` does not clear session data** — `src/Auth.php:96-99`. Unset session + destroy + regenerate id.
+- [x] SEC-014. **`Auth::logout()` does not clear session data** — `src/Auth.php:96-99`. Unset session + destroy + regenerate id.
 
 ## Nice to have
 
 - [ ] SEC-015. **`openssl_random_pseudo_bytes` → `random_bytes`** — `src/Encryption.php:13`, `src/scripts/update_secret.php:43`.
-- [ ] SEC-016. **Remove `usleep` delays in login** — `src/Auth.php:60,65` (after server-side throttling exists).
+- [x] SEC-016. **Remove `usleep` delays in login** — `src/Auth.php:60,65` (after server-side throttling exists).
 - [ ] SEC-017. **AI sends raw error text to third party** — `src/AI.php:39`. Add opt-in + redaction.
 
 ## Lean / cleanup

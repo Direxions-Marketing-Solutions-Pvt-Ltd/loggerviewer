@@ -56,13 +56,8 @@ class Auth
                 $this->setSession($user);
                 return true;
             } else {
-                // Brute force mitigation
-                usleep(rand(500000, 1500000)); // 0.5s to 1.5s delay
                 error_log("Login failed for user '$username': Password mismatch.");
             }
-        } else {
-            // OWASP: Slow down even if user not found to prevent timing attacks
-            usleep(rand(500000, 1500000));
         }
         return false;
     }
@@ -95,6 +90,11 @@ class Auth
 
     public function logout(): void
     {
+        $_SESSION = [];
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+        }
         session_destroy();
     }
 
@@ -133,44 +133,69 @@ class Auth
         return $access !== false;
     }
 
+    private function ensureAttemptsTable(): void
+    {
+        $this->db->query("CREATE TABLE IF NOT EXISTS login_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT UNIQUE NOT NULL,
+            count INTEGER NOT NULL DEFAULT 0,
+            first_at INTEGER NOT NULL,
+            lock_until INTEGER NOT NULL DEFAULT 0
+        )");
+    }
+
     private function attemptKey(string $identifier): string
     {
-        return 'lv_attempts_' . md5($identifier);
+        return md5($identifier);
     }
 
     public function isLockedOut(string $identifier): bool
     {
+        $this->ensureAttemptsTable();
         $key = $this->attemptKey($identifier);
-        $data = $_SESSION[$key] ?? null;
-        if (!is_array($data)) {
+        $row = $this->db->get_row("SELECT * FROM login_attempts WHERE key = ?", [$key]);
+        if (!$row) {
             return false;
         }
-        if (!empty($data['lock_until']) && time() < (int)$data['lock_until']) {
+        $now = time();
+        if (!empty($row->lock_until) && $now < (int)$row->lock_until) {
             return true;
         }
-        if (time() - (int)($data['first'] ?? time()) > 900) {
-            unset($_SESSION[$key]);
+        if ($now - (int)$row->first_at > 900) {
+            $this->db->delete('login_attempts', ['key' => $key]);
         }
         return false;
     }
 
     public function recordFailure(string $identifier): void
     {
+        $this->ensureAttemptsTable();
         $key = $this->attemptKey($identifier);
-        $data = $_SESSION[$key] ?? ['count' => 0, 'first' => time(), 'lock_until' => 0];
-        if (time() - (int)($data['first'] ?? time()) > 900) {
-            $data = ['count' => 0, 'first' => time(), 'lock_until' => 0];
+        $now = time();
+        $row = $this->db->get_row("SELECT * FROM login_attempts WHERE key = ?", [$key]);
+
+        if (!$row || $now - (int)$row->first_at > 900) {
+            $this->db->insert('login_attempts', [
+                'key' => $key,
+                'count' => 1,
+                'first_at' => $now,
+                'lock_until' => 0
+            ], true);
+            return;
         }
-        $data['count'] = (int)($data['count'] ?? 0) + 1;
-        if ($data['count'] >= 5) {
-            $data['lock_until'] = time() + 900;
-        }
-        $_SESSION[$key] = $data;
+
+        $count = (int)$row->count + 1;
+        $lockUntil = ($count >= 5) ? ($now + 900) : 0;
+        $this->db->update('login_attempts', [
+            'count' => $count,
+            'lock_until' => $lockUntil
+        ], ['key' => $key]);
     }
 
     public function clearAttempts(string $identifier): void
     {
-        unset($_SESSION[$this->attemptKey($identifier)]);
+        $this->ensureAttemptsTable();
+        $this->db->delete('login_attempts', ['key' => $this->attemptKey($identifier)]);
     }
 
 }
