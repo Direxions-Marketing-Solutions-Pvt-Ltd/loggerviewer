@@ -72,11 +72,20 @@ class Project
 
     public function setUserProjects(int $userId, array $projectIds): bool
     {
-        $this->db->delete('project_access', ['user_id' => $userId]);
-        foreach ($projectIds as $projectId) {
-            $this->grantAccess($userId, (int)$projectId);
+        $this->db->beginTransaction();
+        try {
+            $this->db->delete('project_access', ['user_id' => $userId]);
+            foreach ($projectIds as $projectId) {
+                if (!$this->grantAccess($userId, (int)$projectId)) {
+                    throw new \RuntimeException('Failed to grant access');
+                }
+            }
+            $this->db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            return false;
         }
-        return true;
     }
 
     public function getUserProjectIds(int $userId): array

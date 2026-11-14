@@ -98,6 +98,39 @@ class Database
         return $this->query($sql, $params) !== false;
     }
 
+    public function beginTransaction(): bool
+    {
+        if ($this->pdo === null) return false;
+        try {
+            return $this->pdo->beginTransaction();
+        } catch (PDOException $e) {
+            $this->last_error = $e->getMessage();
+            return false;
+        }
+    }
+
+    public function commit(): bool
+    {
+        if ($this->pdo === null) return false;
+        try {
+            return $this->pdo->commit();
+        } catch (PDOException $e) {
+            $this->last_error = $e->getMessage();
+            return false;
+        }
+    }
+
+    public function rollBack(): bool
+    {
+        if ($this->pdo === null) return false;
+        try {
+            return $this->pdo->rollBack();
+        } catch (PDOException $e) {
+            $this->last_error = $e->getMessage();
+            return false;
+        }
+    }
+
     public function delete(string $table, array $where): bool
     {
         $this->assertIdentifier($table);

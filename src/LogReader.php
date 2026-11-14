@@ -666,33 +666,42 @@ class LogReader
             'info'  => "\\b(info|information|notice|debug)\\b|\\[[0-9]{2}/[A-Z][a-z]{2}/[0-9]{4}:"
         ];
 
+        // Short-lived cache to avoid repeated full-file scans
+        $cache = new \App\Cache();
+        $cacheKey = 'log_count_' . md5($filePath . '|' . @filemtime($filePath) . '|' . @filesize($filePath) . '|' . $filter);
+        $cached = $cache->get($cacheKey);
+        if (is_int($cached)) {
+            return $cached;
+        }
+
+        $result = 0;
         try {
             $filesize = filesize($filePath);
             if ($filter === 'all') {
                 // If it's a large file, don't count lines every time for speed
                 if (!$isGz && $filesize > 50000000) { // > 50MB
-                    return -1; // Indicate "Too large to count"
+                    $result = -1; // Indicate "Too large to count"
+                } else {
+                    $cmd = $isGz ? "zcat $escapedPath | wc -l" : "wc -l < $escapedPath";
+                    $output = trim((string)shell_exec($cmd));
+                    $result = ($output !== '' && is_numeric($output)) ? (int)$output : $this->countLinesPhp($filePath, $filter, $patterns);
                 }
-                $cmd = $isGz ? "zcat $escapedPath | wc -l" : "wc -l < $escapedPath";
             } elseif (isset($patterns[$filter])) {
                 $pattern = $patterns[$filter];
-                $cmd = $isGz 
+                $cmd = $isGz
                     ? "zgrep -E -c -i " . escapeshellarg($pattern) . " $escapedPath"
                     : "grep -E -c -i " . escapeshellarg($pattern) . " $escapedPath";
+                $output = trim((string)shell_exec($cmd));
+                $result = ($output !== '' && is_numeric($output)) ? (int)$output : $this->countLinesPhp($filePath, $filter, $patterns);
             } else {
-                return 0;
+                $result = 0;
             }
-
-            $output = trim((string)shell_exec($cmd));
-            if ($output !== '' && is_numeric($output)) {
-                return (int)$output;
-            }
-
-            // PHP fallback when shell tools are unavailable
-            return $this->countLinesPhp($filePath, $filter, $patterns);
         } catch (\Throwable $e) {
-             return 0;
+            $result = 0;
         }
+
+        $cache->set($cacheKey, $result, 60);
+        return $result;
     }
 
     private function countLinesPhp(string $filePath, string $filter, array $patterns): int

@@ -18,8 +18,8 @@ Reference items by their ID (e.g., "fix SEC-003").
 - [x] SEC-008. **`Database::query` crashes if connection failed** — `src/Database.php:34-44`. Return false when `$pdo === null`.
 - [x] SEC-009. **`Cache::get` unserializes Redis data (object injection)** — `src/Cache.php:35-37`. Use JSON or signed serialization.
 - [x] SEC-010. **`Auth::hasAccess` opens a new Database per call** — `src/Auth.php:127`. Reuse existing connection.
-- [ ] SEC-011. **`LogReader::getTotalLines` runs shell commands per request** — `src/LogReader.php:644-687`. Cache counts briefly or compute on demand.
-- [ ] SEC-012. **`Project::setUserProjects` not transactional** — `src/Project.php:73-80`. Wrap in transaction.
+- [x] SEC-011. **`LogReader::getTotalLines` runs shell commands per request** — `src/LogReader.php:644-687`. Cache counts briefly or compute on demand.
+- [x] SEC-012. **`Project::setUserProjects` not transactional** — `src/Project.php:73-80`. Wrap in transaction.
 - [x] SEC-013. **Role values not validated server-side** — `src/User.php:34,84`. Whitelist `['user','admin']`.
 - [x] SEC-014. **`Auth::logout()` does not clear session data** — `src/Auth.php:96-99`. Unset session + destroy + regenerate id.
 
