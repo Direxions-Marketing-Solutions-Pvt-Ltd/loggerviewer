@@ -412,14 +412,18 @@ class LogReader
         }
 
         $isGz = str_ends_with($filePath, '.gz');
+        $cachedPath = null;
 
         if ($isGz) {
             $cached = $this->decompressGzCached($filePath);
             if ($cached !== null && file_exists($cached)) {
                 $filePath = $cached;
                 $isGz = false;
+                $cachedPath = $cached;
             }
         }
+
+        try {
 
         // Compressed files: forward scan (no random seek)
         if ($isGz) {
@@ -513,6 +517,11 @@ class LogReader
         fclose($handle);
         $stats['samples'] = $samples;
         return $stats;
+    } finally {
+        if ($cachedPath) {
+            @unlink($cachedPath);
+        }
+    }
     }
 
     private function detectLevel(string $line, array $fields = []): string
@@ -721,29 +730,66 @@ class LogReader
         $tmpDir = sys_get_temp_dir();
         $target = $tmpDir . DIRECTORY_SEPARATOR . 'lv_gz_' . $key . '.log';
 
+        // Reclaim temp files left behind by previous runs / rotated logs.
+        $this->cleanupGzCache($tmpDir);
+
         if (file_exists($target) && filesize($target) > 0) {
+            @touch($target);
             return $target;
         }
 
         // Decompress in chunks to keep memory low
         $in = @gzopen($gzPath, 'rb');
         if (!$in) {
+            @unlink($target);
             return null;
         }
         $out = @fopen($target, 'wb');
         if (!$out) {
             gzclose($in);
+            @unlink($target);
             return null;
         }
+        $ok = true;
         while (!gzeof($in)) {
             $chunk = gzread($in, 1 << 20); // 1MB chunks
-            if ($chunk === false) break;
-            fwrite($out, $chunk);
+            if ($chunk === false) { $ok = false; break; }
+            if (fwrite($out, $chunk) === false) { $ok = false; break; }
         }
         fclose($out);
         gzclose($in);
 
-        return file_exists($target) ? $target : null;
+        if (!$ok || !file_exists($target) || filesize($target) === 0) {
+            @unlink($target);
+            return null;
+        }
+
+        @touch($target);
+        return $target;
+    }
+
+    /**
+     * Remove stale/partial decompression cache files so they don't accumulate.
+     * Keeps recently used caches (TTL) to preserve the performance benefit.
+     */
+    private function cleanupGzCache(string $tmpDir): void
+    {
+        $ttl = 60; // keep caches used within the last minute
+        $cutoff = time() - $ttl;
+        foreach (glob($tmpDir . DIRECTORY_SEPARATOR . 'lv_gz_*.log') ?: [] as $file) {
+            if (!is_file($file)) {
+                continue;
+            }
+            // Always drop empty/partial files.
+            if (filesize($file) === 0) {
+                @unlink($file);
+                continue;
+            }
+            $fmtime = @filemtime($file);
+            if ($fmtime === false || $fmtime < $cutoff) {
+                @unlink($file);
+            }
+        }
     }
 
     private function convertDatesToAppTz(array $result): array
