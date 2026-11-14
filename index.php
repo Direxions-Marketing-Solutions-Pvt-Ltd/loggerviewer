@@ -25,6 +25,7 @@ use App\LogReader;
 $db = new Database(DB_PATH);
 $auth = new Auth($db);
 $projectManager = new Project($db);
+$rateLimiter = new \App\RateLimiter($db);
 
 $action = $_GET['action'] ?? 'dashboard';
 
@@ -63,6 +64,10 @@ switch ($action) {
         $otpPending = $_SESSION['otp_pending_user_id'] ?? null;
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            if (!$rateLimiter->allow('login:' . $clientIp, 20, 60)) {
+                $error = 'Too many requests. Please try again later.';
+            } else {
             if (isset($_POST['otp'])) {
                 // Step 2: Verify OTP
                 $otpIdentifier = 'otp:' . (int)$otpPending . '|' . ($_SERVER['REMOTE_ADDR'] ?? '');
@@ -119,6 +124,7 @@ switch ($action) {
                     $error = 'Invalid username or password';
                 }
             }
+            }
         }
         require __DIR__ . '/src/views/login.php';
         break;
@@ -174,6 +180,11 @@ switch ($action) {
         break;
 
     case 'download_raw':
+        $clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        if (!$rateLimiter->allow('download_raw:' . $clientIp, 30, 60)) {
+            http_response_code(429);
+            die('Too many requests. Please try again later.');
+        }
         $projectId = (int)($_GET['project_id'] ?? 0);
         $file = $_GET['file'] ?? '';
         
@@ -218,6 +229,12 @@ switch ($action) {
 
     case 'api_logs':
         header('Content-Type: application/json');
+        $clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        if (!$rateLimiter->allow('api_logs:' . $clientIp, 120, 60)) {
+            http_response_code(429);
+            echo json_encode(['error' => 'Too many requests']);
+            exit;
+        }
         $projectId = (int)$_GET['project_id'];
         if (!$auth->hasAccess($projectId)) {
             http_response_code(403);
@@ -257,6 +274,12 @@ switch ($action) {
     case 'api_ai_ask':
         try {
             header('Content-Type: application/json');
+            $clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            if (!$rateLimiter->allow('api_ai_ask:' . $clientIp, 10, 60)) {
+                http_response_code(429);
+                echo json_encode(['error' => 'Too many requests']);
+                exit;
+            }
             if (!defined('AI_ENABLED') || !AI_ENABLED) {
                 echo json_encode(['error' => 'AI is disabled']);
                 exit;

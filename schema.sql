@@ -49,6 +49,13 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     lock_until INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS rate_limits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT UNIQUE NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    window_start INTEGER NOT NULL
+);
+
 -- Initial Administrator
 -- Default credentials: admin / admin123
 INSERT OR IGNORE INTO users (username, password, role, email, auth_type) 
