@@ -113,7 +113,7 @@ class Auth
         return $_SESSION['user_id'] ?? null;
     }
 
-    public static function hasAccess(int $projectId): bool
+    public function hasAccess(int $projectId): bool
     {
         if (self::isAdmin()) {
             return true;

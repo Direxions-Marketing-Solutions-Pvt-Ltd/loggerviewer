@@ -15,9 +15,9 @@ Reference items by their ID (e.g., "fix SEC-003").
 ## Should fix
 
 - [x] SEC-007. **No security headers (CSP, X-Frame-Options, HSTS)** — app-wide; emit in `index.php` or `.htaccess`.
-- [ ] SEC-008. **`Database::query` crashes if connection failed** — `src/Database.php:34-44`. Return false when `$pdo === null`.
-- [ ] SEC-009. **`Cache::get` unserializes Redis data (object injection)** — `src/Cache.php:35-37`. Use JSON or signed serialization.
-- [ ] SEC-010. **`Auth::hasAccess` opens a new Database per call** — `src/Auth.php:127`. Reuse existing connection.
+- [x] SEC-008. **`Database::query` crashes if connection failed** — `src/Database.php:34-44`. Return false when `$pdo === null`.
+- [x] SEC-009. **`Cache::get` unserializes Redis data (object injection)** — `src/Cache.php:35-37`. Use JSON or signed serialization.
+- [x] SEC-010. **`Auth::hasAccess` opens a new Database per call** — `src/Auth.php:127`. Reuse existing connection.
 - [ ] SEC-011. **`LogReader::getTotalLines` runs shell commands per request** — `src/LogReader.php:644-687`. Cache counts briefly or compute on demand.
 - [ ] SEC-012. **`Project::setUserProjects` not transactional** — `src/Project.php:73-80`. Wrap in transaction.
 - [x] SEC-013. **Role values not validated server-side** — `src/User.php:34,84`. Whitelist `['user','admin']`.
@@ -31,7 +31,7 @@ Reference items by their ID (e.g., "fix SEC-003").
 
 ## Lean / cleanup
 
-- [ ] SEC-018. **Remove per-call Database instantiation in `Auth::hasAccess`**.
+- [x] SEC-018. **Remove per-call Database instantiation in `Auth::hasAccess`**.
 - [x] SEC-019. **Consolidate encryption helpers** (remove duplicated logic in `update_secret.php`).
 - [ ] SEC-020. **Drop `usleep` delays once throttling is server-side.**
 

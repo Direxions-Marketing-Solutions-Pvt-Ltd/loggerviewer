@@ -156,7 +156,7 @@ switch ($action) {
     case 'analytics':
         $projectId = (int)($_GET['project_id'] ?? 0);
         if ($projectId > 0) {
-            if (!\App\Auth::hasAccess($projectId)) {
+            if (!$auth->hasAccess($projectId)) {
                 header('Location: index.php');
                 exit;
             }
@@ -178,7 +178,7 @@ switch ($action) {
         $file = $_GET['file'] ?? '';
         
         $project = $projectManager->getById($projectId);
-        if (!$project || !Auth::hasAccess($project->id)) {
+        if (!$project || !$auth->hasAccess($project->id)) {
             die("Unauthorized or project not found.");
         }
 
@@ -219,7 +219,7 @@ switch ($action) {
     case 'api_logs':
         header('Content-Type: application/json');
         $projectId = (int)$_GET['project_id'];
-        if (!Auth::hasAccess($projectId)) {
+        if (!$auth->hasAccess($projectId)) {
             http_response_code(403);
             echo json_encode(['error' => 'Unauthorized']);
             exit;
@@ -263,7 +263,7 @@ switch ($action) {
             }
 
             $projectId = (int)($_POST['project_id'] ?? 0);
-            if ($projectId > 0 && !Auth::hasAccess($projectId)) {
+            if ($projectId > 0 && !$auth->hasAccess($projectId)) {
                 http_response_code(403);
                 echo json_encode(['error' => 'Unauthorized']);
                 exit;

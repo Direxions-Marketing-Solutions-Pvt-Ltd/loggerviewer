@@ -34,7 +34,11 @@ class Cache
 
         try {
             $value = $this->redis->get($key);
-            return $value !== false ? unserialize($value) : false;
+            if ($value === false) {
+                return false;
+            }
+            $decoded = json_decode($value, true);
+            return (json_last_error() === JSON_ERROR_NONE) ? $decoded : false;
         } catch (RedisException $e) {
             error_log("Redis get failed: " . $e->getMessage());
             return false;
@@ -48,7 +52,7 @@ class Cache
         }
 
         try {
-            return $this->redis->set($key, serialize($value), $ttl);
+            return $this->redis->set($key, json_encode($value), $ttl);
         } catch (RedisException $e) {
             error_log("Redis set failed: " . $e->getMessage());
             return false;

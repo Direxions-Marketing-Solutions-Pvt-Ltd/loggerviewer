@@ -33,6 +33,9 @@ class Database
 
     public function query(string $query, array $params = []): PDOStatement|bool
     {
+        if ($this->pdo === null) {
+            return false;
+        }
         try {
             $stmt = $this->pdo->prepare($query);
             $stmt->execute($params);
