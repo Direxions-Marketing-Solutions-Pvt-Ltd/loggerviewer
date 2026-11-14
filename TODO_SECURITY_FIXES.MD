@@ -27,13 +27,13 @@ Reference items by their ID (e.g., "fix SEC-003").
 
 - [x] SEC-015. **`openssl_random_pseudo_bytes` → `random_bytes`** — `src/Encryption.php:13`, `src/scripts/update_secret.php:43`.
 - [x] SEC-016. **Remove `usleep` delays in login** — `src/Auth.php:60,65` (after server-side throttling exists).
-- [ ] SEC-017. **AI sends raw error text to third party** — `src/AI.php:39`. Add opt-in + redaction.
+- [x] SEC-017. **AI sends raw error text to third party** — `src/AI.php:39`. Add opt-in + redaction.
 
 ## Lean / cleanup
 
 - [x] SEC-018. **Remove per-call Database instantiation in `Auth::hasAccess`**.
 - [x] SEC-019. **Consolidate encryption helpers** (remove duplicated logic in `update_secret.php`).
-- [ ] SEC-020. **Drop `usleep` delays once throttling is server-side.**
+- [x] SEC-020. **Drop `usleep` delays once throttling is server-side.**
 
 ## Notes
 - No automated tests exist; verify manually after each fix.

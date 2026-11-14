@@ -28,6 +28,9 @@ class AI
             return "AI API Key is missing or could not be decrypted. Please check your settings.";
         }
 
+        // Redact potentially sensitive data before sending to a third party
+        $errorMessage = $this->redact($errorMessage);
+
         $systemPrompt = "You are an expert in NGINX / APACHE and PHP log analysis with 10+ years of experience in PHP development. "
                       . "Your goal is to provide a concise, actionable analysis for the following error log entry. "
                       . "Identify the cause and suggest a specific fix. Keep your response short and professional.";
@@ -69,5 +72,14 @@ class AI
 
         $result = json_decode($response, true);
         return $result['choices'][0]['message']['content'] ?? "Could not parse AI response.";
+    }
+
+    private function redact(string $text): string
+    {
+        // Redact IPv4 addresses
+        $text = preg_replace('/\b(?:\d{1,3}\.){3}\d{1,3}\b/', '[ip]', $text);
+        // Redact absolute filesystem paths
+        $text = preg_replace('#/[A-Za-z0-9._/\-]+#', '[path]', $text);
+        return $text;
     }
 }
