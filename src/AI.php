@@ -29,7 +29,7 @@ class AI
         }
 
         // Redact potentially sensitive data before sending to a third party
-        $errorMessage = $this->redact($errorMessage);
+        $errorMessage = $this->redact($errorMessage, defined('AI_REDACT_LEVEL') ? AI_REDACT_LEVEL : 'standard');
 
         $systemPrompt = "You are an expert in NGINX / APACHE and PHP log analysis with 10+ years of experience in PHP development. "
                       . "Your goal is to provide a concise, actionable analysis for the following error log entry. "
@@ -74,12 +74,40 @@ class AI
         return $result['choices'][0]['message']['content'] ?? "Could not parse AI response.";
     }
 
-    private function redact(string $text): string
+    private function redact(string $text, string $level = 'standard'): string
     {
-        // Redact IPv4 addresses
+        if ($level === 'none') {
+            return $text;
+        }
+
+        // IPv4 addresses
         $text = preg_replace('/\b(?:\d{1,3}\.){3}\d{1,3}\b/', '[ip]', $text);
-        // Redact absolute filesystem paths
+
+        // Absolute filesystem paths
         $text = preg_replace('#/[A-Za-z0-9._/\-]+#', '[path]', $text);
+
+        // Email addresses
+        $text = preg_replace('/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/', '[email]', $text);
+
+        // Query strings
+        $text = preg_replace('/\?[^\s"\'<>]+/', '?[query]', $text);
+
+        // Key/token/password assignments
+        $text = preg_replace('/\b(password|passwd|pwd|secret|token|api[_-]?key|key|auth)\s*[:=]\s*\S+/i', '$1=[redacted]', $text);
+
+        // Bearer tokens
+        $text = preg_replace('/Bearer\s+[A-Za-z0-9._\-]+/i', 'Bearer [redacted]', $text);
+
+        if ($level === 'strict') {
+            // Long hex/base64-ish tokens
+            $text = preg_replace('/\b[A-Fa-f0-9]{24,}\b/', '[token]', $text);
+            $text = preg_replace('/\b[A-Za-z0-9+\/]{32,}={0,2}\b/', '[token]', $text);
+            // Phone numbers
+            $text = preg_replace('/\b(?:\+?\d[\d\s\-()]{7,}\d)\b/', '[phone]', $text);
+            // Hostnames
+            $text = preg_replace('/\b(?:[a-z0-9\-]+\.)+[a-z]{2,}\b/i', '[host]', $text);
+        }
+
         return $text;
     }
 }

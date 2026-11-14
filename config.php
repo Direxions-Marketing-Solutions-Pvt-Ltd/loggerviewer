@@ -59,6 +59,7 @@ define('AI_ENABLED', env('AI_ENABLED', 'false') === 'true');
 define('AI_API_URL', env('AI_API_URL', 'https://api.openai.com/v1/chat/completions'));
 define('AI_API_KEY', env('AI_API_KEY', ''));
 define('AI_MODEL', env('AI_MODEL', 'gpt-4-turbo'));
+define('AI_REDACT_LEVEL', env('AI_REDACT_LEVEL', 'standard')); // none, standard, strict
 
 // Apply configured timezone
 date_default_timezone_set(APP_TIMEZONE);

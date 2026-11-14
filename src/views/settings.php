@@ -41,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
             'AI_ENABLED' => isset($_POST['ai_enabled']) ? 'true' : 'false',
             'AI_API_URL' => $_POST['ai_api_url'] ?? 'https://api.openai.com/v1/chat/completions',
             'AI_MODEL' => $_POST['ai_model'] ?? 'gpt-4-turbo',
+            'AI_REDACT_LEVEL' => $_POST['ai_redact_level'] ?? 'standard',
             
             'DEFAULT_AUTH_TYPE' => $_POST['default_auth_type'] ?? 'otp',
             'REDIS_HOST' => $_POST['redis_host'] ?? '127.0.0.1',
@@ -223,6 +224,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
                         <div class="form-group">
                             <label>Model</label>
                             <input type="text" name="ai_model" value="<?= htmlspecialchars(AI_MODEL) ?>">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Redaction level (before sending to AI)</label>
+                            <select name="ai_redact_level" style="width: 100%; padding: 0.875rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--card-border); border-radius: 0.75rem; color: white;">
+                                <option value="none" <?= (defined('AI_REDACT_LEVEL') && AI_REDACT_LEVEL === 'none') ? 'selected' : '' ?>>None</option>
+                                <option value="standard" <?= (!defined('AI_REDACT_LEVEL') || AI_REDACT_LEVEL === 'standard') ? 'selected' : '' ?>>Standard</option>
+                                <option value="strict" <?= (defined('AI_REDACT_LEVEL') && AI_REDACT_LEVEL === 'strict') ? 'selected' : '' ?>>Strict</option>
+                            </select>
                         </div>
                     </div>
                 </div>
