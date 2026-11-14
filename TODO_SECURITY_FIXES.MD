@@ -10,11 +10,11 @@ Reference items by their ID (e.g., "fix SEC-003").
 - [ ] SEC-003. **Unauthenticated encryption (CBC, no MAC)** — `src/Encryption.php`. Switch to AES-256-GCM with random IV + auth tag; re-encrypt on rotation.
 - [x] SEC-004. **Decrypted secrets rendered in settings HTML** — `src/views/settings.php:169,214`. Empty password fields; only update when new value submitted.
 - [x] SEC-005. **Content-Disposition filename not escaped** — `index.php:197`. Use `rawurlencode(basename($filePath))`.
-- [ ] SEC-006. **Newline injection in `.env` writer** — `src/ConfigManager.php:43-69`. Reject/strip `\r`/`\n` in keys and values.
+- [x] SEC-006. **Newline injection in `.env` writer** — `src/ConfigManager.php:43-69`. Reject/strip `\r`/`\n` in keys and values.
 
 ## Should fix
 
-- [ ] SEC-007. **No security headers (CSP, X-Frame-Options, HSTS)** — app-wide; emit in `index.php` or `.htaccess`.
+- [x] SEC-007. **No security headers (CSP, X-Frame-Options, HSTS)** — app-wide; emit in `index.php` or `.htaccess`.
 - [ ] SEC-008. **`Database::query` crashes if connection failed** — `src/Database.php:34-44`. Return false when `$pdo === null`.
 - [ ] SEC-009. **`Cache::get` unserializes Redis data (object injection)** — `src/Cache.php:35-37`. Use JSON or signed serialization.
 - [ ] SEC-010. **`Auth::hasAccess` opens a new Database per call** — `src/Auth.php:127`. Reuse existing connection.

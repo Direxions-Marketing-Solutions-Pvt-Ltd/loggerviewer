@@ -39,8 +39,11 @@ class ConfigManager {
             }
 
             $key = trim($parts[0]);
+            // Guard against header/env injection via newlines
+            $key = str_replace(["\r", "\n", "\0"], '', $key);
             if (array_key_exists($key, $data)) {
                 $value = (string)$data[$key];
+                $value = str_replace(["\r", "\n", "\0"], '', $value);
                 // Quote if necessary
                 if (strpos($value, ' ') !== false || strpos($value, '#') !== false || strpos($value, '"') !== false) {
                     $value = '"' . str_replace('"', '\"', $value) . '"';
@@ -54,8 +57,9 @@ class ConfigManager {
 
         // Add new keys that weren't in the original file
         foreach ($data as $key => $value) {
+            $key = str_replace(["\r", "\n", "\0"], '', (string)$key);
             if (!in_array($key, $processedKeys)) {
-                $value = (string)$value;
+                $value = str_replace(["\r", "\n", "\0"], '', (string)$value);
                 if (strpos($value, ' ') !== false || strpos($value, '#') !== false || strpos($value, '"') !== false || empty($value)) {
                     if (empty($value)) {
                         $newLines[] = "$key=";

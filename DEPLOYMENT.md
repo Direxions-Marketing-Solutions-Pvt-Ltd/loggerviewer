@@ -81,6 +81,11 @@ server {
         fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
     }
 
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
     # Security: Deny access to sensitive files and directories
     location ~ /\.env { deny all; }
     location ^~ /data/ { deny all; }

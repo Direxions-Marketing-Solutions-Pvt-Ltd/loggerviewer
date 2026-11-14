@@ -7,6 +7,16 @@ if (version_compare(PHP_VERSION, '8.1.0', '<')) {
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/src/autoload.php';
 
+// Security headers (OWASP)
+header('X-Frame-Options: SAMEORIGIN');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+}
+header("Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'");
+
 use App\Database;
 use App\Auth;
 use App\Project;
