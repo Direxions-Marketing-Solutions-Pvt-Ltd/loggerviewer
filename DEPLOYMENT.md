@@ -81,9 +81,11 @@ server {
         fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
     }
 
-    # Security: Deny access to sensitive files
+    # Security: Deny access to sensitive files and directories
     location ~ /\.env { deny all; }
     location ^~ /data/ { deny all; }
+    location ^~ /src/ { deny all; }
+    location ~ ^/(install\.php|schema\.sql)$ { deny all; }
     location ~ \.sqlite$ { deny all; }
 }
 ```

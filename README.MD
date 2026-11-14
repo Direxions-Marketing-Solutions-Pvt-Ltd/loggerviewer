@@ -33,7 +33,7 @@ Logger View is a high-performance, secure, and modern web application for scanni
 3. **Configure**: Follow the prompts to set your 32-character `AUTH_SECRET`.
 4. **Login**: Access the dashboard and start monitoring your logs!
 
-> For detailed deployment instructions, server configurations, and security tips, see [DEPLOYMENT.MD](DEPLOYMENT.MD).
+> For detailed deployment instructions, server configurations, and security tips (including Nginx/Apache rules to protect `.env`, `data/`, and `src/`), see [DEPLOYMENT.MD](DEPLOYMENT.MD).
 
 ## 🔧 CLI Tools
 

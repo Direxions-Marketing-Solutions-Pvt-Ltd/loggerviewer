@@ -1,0 +1,38 @@
+# Logger View - Apache access control
+# Nginx users: configure deny rules in the server block (see DEPLOYMENT.md).
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    RewriteRule ^index\.php$ - [L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . /index.php [L]
+</IfModule>
+
+# Deny access to sensitive files and directories
+<FilesMatch "^\.env">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "\.(sqlite|sqlite3|db)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_authz_core.c>
+    <DirectoryMatch "^.*/(src|data)/">
+        Require all denied
+    </DirectoryMatch>
+</IfModule>
+
+# Fallback for Apache 2.2
+<IfModule !mod_authz_core.c>
+    <FilesMatch "^\.env">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+    <FilesMatch "\.(sqlite|sqlite3|db)$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</IfModule>
