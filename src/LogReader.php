@@ -700,7 +700,7 @@ class LogReader
             $result = 0;
         }
 
-        $cache->set($cacheKey, $result, 60);
+        $cache->set($cacheKey, $result, 300);
         return $result;
     }
 
@@ -807,9 +807,14 @@ class LogReader
         if ($tz === 'UTC' || empty($result['lines'])) {
             return $result;
         }
+        $epochCache = [];
         foreach ($result['lines'] as &$entry) {
             if (isset($entry['parsed']['columns']['date'])) {
-                $epoch = $this->parseDateToTimestamp((string)$entry['parsed']['columns']['date']);
+                $dateStr = (string)$entry['parsed']['columns']['date'];
+                if (!array_key_exists($dateStr, $epochCache)) {
+                    $epochCache[$dateStr] = $this->parseDateToTimestamp($dateStr);
+                }
+                $epoch = $epochCache[$dateStr];
                 if ($epoch !== null) {
                     $prev = date_default_timezone_get();
                     date_default_timezone_set($tz);
@@ -825,28 +830,38 @@ class LogReader
     private function getLinesFromBottom(string $file, int $count = 1): array
     {
         if (!file_exists($file)) return [];
+        $size = filesize($file);
+        if ($size === 0) return [];
+
+        $chunkSize = 8192;
+        while ($chunkSize < $size && $chunkSize < 65536) {
+            // Read the tail in one chunk instead of byte-by-byte
+            $readSize = min($size, $chunkSize);
+            $handle = fopen($file, 'rb');
+            if (!$handle) return [];
+            fseek($handle, -$readSize, SEEK_END);
+            $chunk = fread($handle, $readSize);
+            fclose($handle);
+
+            $lines = explode("\n", $chunk);
+            if (end($lines) === '') {
+                array_pop($lines);
+            }
+            if (count($lines) >= $count) {
+                return array_values(array_slice($lines, -$count));
+            }
+            $chunkSize *= 2;
+        }
+
+        // Fallback: read whole file if still not enough lines
         $handle = fopen($file, 'rb');
         if (!$handle) return [];
-
-        $lines = [];
-        $pos = -1;
-        fseek($handle, 0, SEEK_END);
-        $totalBytes = ftell($handle);
-
-        for ($i = 0; $i < $count && abs($pos) <= $totalBytes; $i++) {
-            $line = '';
-            while (abs($pos) <= $totalBytes) {
-                fseek($handle, $pos--, SEEK_END);
-                $char = fgetc($handle);
-                if ($char === "\n") {
-                    if ($line === '') continue;
-                    break;
-                }
-                $line = $char . $line;
-            }
-            if ($line !== '') $lines[] = $line;
-        }
+        $chunk = stream_get_contents($handle);
         fclose($handle);
-        return $lines;
+        $lines = explode("\n", $chunk);
+        if (end($lines) === '') {
+            array_pop($lines);
+        }
+        return array_values(array_slice($lines, -$count));
     }
 }

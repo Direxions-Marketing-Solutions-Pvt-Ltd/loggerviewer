@@ -25,6 +25,17 @@ $db = new Database(DB_PATH);
 $projectManager = new Project($db);
 $projects = $projectManager->getAll();
 
+// Load previous collection state to skip unchanged log files
+$stateFile = dirname(DB_PATH) . DIRECTORY_SEPARATOR . '.collect_state.json';
+$state = [];
+if (file_exists($stateFile)) {
+    $decoded = json_decode((string)file_get_contents($stateFile), true);
+    if (is_array($decoded)) {
+        $state = $decoded;
+    }
+}
+$newState = $state;
+
 // We collect for the PREVIOUS hour, as that hour is now "complete"
 $targetHourTs = strtotime(date('Y-m-d H:00:00')) - 3600;
 $currentHour = date('Y-m-d H:00:00', $targetHourTs);
@@ -45,6 +56,11 @@ foreach ($projects as $project) {
     if (!empty($project->webserver_path)) {
         $reader = new LogReader($project->webserver_path, $project->webserver_format);
         foreach ($reader->getLogFiles() as $file) {
+            $fkey = $file['name'] . '@' . ($file['size'] ?? 0) . ':' . ($file['mtime'] ?? 0);
+            if (isset($state[$fkey]) && $state[$fkey] === 'done') {
+                echo " - Skipping unchanged webserver log: {$file['name']}\n";
+                continue;
+            }
             echo " - Scanning webserver log: {$file['name']}...";
                 $hourly = $reader->getHourlyStats($file['name'], $targetHourTs);
                 $stats['error'] += $hourly['error'];
@@ -56,6 +72,7 @@ foreach ($projects as $project) {
                     $errorMessages[$msg] = ($errorMessages[$msg] ?? 0) + 1;
                 }
                 echo " Done (E:{$hourly['error']}, W:{$hourly['warn']}, I:{$hourly['info']})\n";
+                $newState[$fkey] = 'done';
         }
     }
 
@@ -63,6 +80,11 @@ foreach ($projects as $project) {
     if (!empty($project->php_path)) {
         $reader = new LogReader($project->php_path, $project->php_format);
         foreach ($reader->getLogFiles() as $file) {
+            $fkey = $file['name'] . '@' . ($file['size'] ?? 0) . ':' . ($file['mtime'] ?? 0);
+            if (isset($state[$fkey]) && $state[$fkey] === 'done') {
+                echo " - Skipping unchanged PHP log: {$file['name']}\n";
+                continue;
+            }
             echo " - Scanning PHP log: {$file['name']}...";
                 $hourly = $reader->getHourlyStats($file['name'], $targetHourTs);
                 $stats['error'] += $hourly['error'];
@@ -74,6 +96,7 @@ foreach ($projects as $project) {
                     $errorMessages[$msg] = ($errorMessages[$msg] ?? 0) + 1;
                 }
                 echo " Done (E:{$hourly['error']}, W:{$hourly['warn']}, I:{$hourly['info']})\n";
+                $newState[$fkey] = 'done';
         }
     }
 
@@ -102,5 +125,8 @@ foreach ($projects as $project) {
         echo " - Critical Error during DB operation: " . $e->getMessage() . "\n";
     }
 }
+
+// Persist collection state
+@file_put_contents($stateFile, json_encode($newState));
 
 echo "Finished at: " . date('Y-m-d H:i:s') . "\n";
