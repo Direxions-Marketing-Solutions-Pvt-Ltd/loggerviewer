@@ -190,7 +190,7 @@ foreach ($phpLogs as $log) $activeDates[date('Y-m-d', $log['mtime'])] = true;
             </div>
 
             <div id="tab-webserver" class="tab-content active">
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 2rem;">Source: <?= $project->webserver_path ?: 'Not Configured' ?></p>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 2rem;">Source: <?= htmlspecialchars($project->webserver_path ?: 'Not Configured') ?></p>
                 <?php if (!empty($webLogsGrouped)): ?>
                     <?php $i = 0; foreach ($webLogsGrouped as $month => $days): ?>
                         <div class="month-accordion <?= $i === 0 ? 'open' : '' ?>">
@@ -228,7 +228,7 @@ foreach ($phpLogs as $log) $activeDates[date('Y-m-d', $log['mtime'])] = true;
             </div>
 
             <div id="tab-php" class="tab-content">
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 2rem;">Source: <?= $project->php_path ?: 'Not Configured' ?></p>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 2rem;">Source: <?= htmlspecialchars($project->php_path ?: 'Not Configured') ?></p>
                 <?php if (!empty($phpLogsGrouped)): ?>
                     <?php $i = 0; foreach ($phpLogsGrouped as $month => $days): ?>
                         <div class="month-accordion <?= $i === 0 ? 'open' : '' ?>">

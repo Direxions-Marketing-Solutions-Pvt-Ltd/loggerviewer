@@ -15,7 +15,7 @@ $title = htmlspecialchars($file) . " (" . ($type === 'webserver' ? 'Web' : 'PHP'
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
             BACK TO PROJECT
         </a>
-        <h1 style="font-size: 2rem; font-weight: 800; letter-spacing: -0.5px;"><?= $file ?></h1>
+        <h1 style="font-size: 2rem; font-weight: 800; letter-spacing: -0.5px;"><?= htmlspecialchars($file) ?></h1>
         <div style="display: flex; align-items: center; gap: 0.75rem; margin-top: 0.25rem;">
              <span class="badge" style="background: <?= $type === 'webserver' ? 'rgba(14, 165, 233, 0.1)' : 'rgba(245, 158, 11, 0.1)' ?>; color: <?= $type === 'webserver' ? '#0ea5e9' : '#f59e0b' ?>;">
                 <?= $type === 'webserver' ? 'WEBSERVER' : 'PHP' ?>
