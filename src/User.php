@@ -25,6 +25,13 @@ class User
 
     public function create(string $username, string $password, string $role, string $email = '', string $authType = 'password'): int|bool
     {
+        if (!in_array($role, ['user', 'admin'], true)) {
+            $role = 'user';
+        }
+        if (!in_array($authType, ['password', 'otp'], true)) {
+            $authType = 'password';
+        }
+
         // Check if username exists
         $exists = $this->db->get_row("SELECT id FROM users WHERE username = ?", [$username]);
         if ($exists) {
@@ -82,13 +89,13 @@ class User
             $fields['password'] = password_hash(hash_hmac('sha256', $data['password'], AUTH_SECRET), PASSWORD_DEFAULT);
         }
         if (isset($data['role'])) {
-            $fields['role'] = $data['role'];
+            $fields['role'] = in_array($data['role'], ['user', 'admin'], true) ? $data['role'] : 'user';
         }
         if (isset($data['email'])) {
             $fields['email'] = $data['email'];
         }
         if (isset($data['auth_type'])) {
-            $fields['auth_type'] = $data['auth_type'];
+            $fields['auth_type'] = in_array($data['auth_type'], ['password', 'otp'], true) ? $data['auth_type'] : 'password';
         }
 
         if (empty($fields)) {

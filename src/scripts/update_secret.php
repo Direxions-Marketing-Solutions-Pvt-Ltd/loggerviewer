@@ -35,16 +35,6 @@ $oldAiApiKey = Encryption::decrypt(AI_API_KEY);
 
 echo "Decrypted current credentials using old secret...\n";
 
-// 3. Define helper for re-encryption with new secret
-function encryptWithNewSecret($data, $secret) {
-    $method = 'aes-256-cbc';
-    if (empty($data)) return '';
-    $key = hash('sha256', $secret);
-    $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length($method));
-    $encrypted = openssl_encrypt($data, $method, $key, 0, $iv);
-    return base64_encode($iv . $encrypted);
-}
-
 // 4. Get new admin password
 $newAdminPass = '';
 while (true) {
@@ -57,8 +47,8 @@ while (true) {
 }
 
 // 5. Update .env
-$newSmtpPassEnc = encryptWithNewSecret($oldSmtpPass, $newSecret);
-$newAiApiKeyEnc = encryptWithNewSecret($oldAiApiKey, $newSecret);
+$newSmtpPassEnc = Encryption::encrypt($oldSmtpPass, $newSecret);
+$newAiApiKeyEnc = Encryption::encrypt($oldAiApiKey, $newSecret);
 
 $updates = [
     'AUTH_SECRET' => $newSecret,

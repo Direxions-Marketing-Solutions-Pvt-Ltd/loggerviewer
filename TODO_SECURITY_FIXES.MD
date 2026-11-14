@@ -20,7 +20,7 @@ Reference items by their ID (e.g., "fix SEC-003").
 - [ ] SEC-010. **`Auth::hasAccess` opens a new Database per call** — `src/Auth.php:127`. Reuse existing connection.
 - [ ] SEC-011. **`LogReader::getTotalLines` runs shell commands per request** — `src/LogReader.php:644-687`. Cache counts briefly or compute on demand.
 - [ ] SEC-012. **`Project::setUserProjects` not transactional** — `src/Project.php:73-80`. Wrap in transaction.
-- [ ] SEC-013. **Role values not validated server-side** — `src/User.php:34,84`. Whitelist `['user','admin']`.
+- [x] SEC-013. **Role values not validated server-side** — `src/User.php:34,84`. Whitelist `['user','admin']`.
 - [x] SEC-014. **`Auth::logout()` does not clear session data** — `src/Auth.php:96-99`. Unset session + destroy + regenerate id.
 
 ## Nice to have
@@ -32,7 +32,7 @@ Reference items by their ID (e.g., "fix SEC-003").
 ## Lean / cleanup
 
 - [ ] SEC-018. **Remove per-call Database instantiation in `Auth::hasAccess`**.
-- [ ] SEC-019. **Consolidate encryption helpers** (remove duplicated logic in `update_secret.php`).
+- [x] SEC-019. **Consolidate encryption helpers** (remove duplicated logic in `update_secret.php`).
 - [ ] SEC-020. **Drop `usleep` delays once throttling is server-side.**
 
 ## Notes
